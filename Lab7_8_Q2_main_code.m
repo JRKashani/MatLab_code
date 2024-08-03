@@ -88,9 +88,7 @@ function current_bet = bet(total_money) %the function bet request a bet size
 %recieving the bet size
     current_bet = input("How much do you wish to bet this round, sir? ");
     %checking if the input is valid
-    current_bet = input_test(current_bet)
-        current_bet = input("There seem to be a problem with the argument you entered, will you try again please? only posistive numbers.\n");
-    end
+    current_bet = input_test(current_bet);
     %checking if the funds are suffiecient
     while current_bet > total_money ||  current_bet <= 0
         error_message = "The bet must be smaller than your current sum of money, " + total_money + " dollars, and still positive.";
