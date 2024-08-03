@@ -1,4 +1,4 @@
-clear; clc;
+clear; %clc;
 %%initilaizing the deck of cards vector with the value of each card
 deck_of_cards = zeros(1,52);
 for i = 1:4
