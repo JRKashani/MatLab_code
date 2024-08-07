@@ -1,4 +1,5 @@
-function zeros_above
+function zeros_above %the function gets a matrix of numbers from the user,
+%and rearrnge each coloumn so the zeros will be the leading elements.
 
 %Accept a matrix from the user
 inMAT = input("Enter a matrix of numbers, please: ");
