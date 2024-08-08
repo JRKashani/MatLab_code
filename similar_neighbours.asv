@@ -20,14 +20,23 @@ function does_have_a_neighbour = similar_neighbours(mat, no_diagonals) %the
         ver_vec = mat(:, (num_of_col+1)/2);
         hor_vec((num_of_row+1)/2) = -inf;
         ver_vec((num_of_col+1)/2) = -inf;
+        if any(center_value == hor_vec) || any(center_value == ver_vec)
+            does_have_a_neighbour = true;
     else
         
     end
 
     temp_bin_mat = ismember(flex_mat, center_value);
-    if any(center_value == hor_vec) || any(center_value == ver_vec) ||...
-            any(temp_bin_mat(:))
-            does_have_a_neighbour = true;
-    elseif
-            does_have_a_neighbour = flase;
+
+    if any(temp_bin_mat(:))
+        does_have_a_neighbour = true;
+    else
+        does_have_a_neighbour = false;
     end
+end
+
+%flex_mat = (-inf)*ones(num_of_row, num_of_col); %the -inf is a
+        %value which will never appears naturally
+%        flex_mat((num_of_rows+1)/2, :) = mat((num_of_rows+1)/2, :);
+ %       flex_mat(:, (num_of_cols+1)/2) = mat(:, (num_of_cols+1)/2);
+        %copying to the matrix re
