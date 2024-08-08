@@ -14,6 +14,10 @@ function does_have_a_neighbour = similar_neighbours(mat, no_diagonals) %the
     
     center_value = mat((num_of_row+1)/2, (num_of_col+1)/2); %isolating the
     %element which will compare everything to.
+    %initilizing the arrays for the last if statement
+    hor_vec = -inf*ones(num_of_col);
+    ver_vec = -inf*ones(num_of_row);
+    test_mat = -inf*ones(num_of_row, num_of_col);
 
     if no_diagonals %taking the main cross, without any elements outside
         %the center row or center coloumn
@@ -23,12 +27,18 @@ function does_have_a_neighbour = similar_neighbours(mat, no_diagonals) %the
         hor_vec((num_of_row+1)/2) = -inf;
         ver_vec((num_of_col+1)/2) = -inf;
     else
-        test_mat = ismember(mat, center_value);
+        test_mat = ismember(mat, center_value); %the ismember will return
+        %a logical matrix of comparing the center value with each element
+        %of the matrix, thus determine if there is another element of this
+        %value
+        test_mat((num_of_row+1)/2, (num_of_col+1)/2) = -inf;
     end
 
     if any(center_value == hor_vec) || any(center_value == ver_vec) ||...
-            any(test_mat(:))
+            any(test_mat(:)) %center value in anywhere but the original
+        %center
             does_have_a_neighbour = true;
     else
-            does_have_a_neighbour = flase;
+            does_have_a_neighbour = fשlse;
     end
+end
