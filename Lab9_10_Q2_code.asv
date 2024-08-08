@@ -48,14 +48,10 @@ function verefied_input = valid_input(sus_input) %a funtion to reduce wasteage
 end
 
 function does_have_a_neighbour = similar_neighbours(mat, no_diagonals)
-    
     flex_mat = mat;
     [num_of_rows, num_of_cols] = size(flex_mat);
-
     if num_rows ~= num_of_cols || ~rem(num_of_rows, 2)
-        disp("Wrong matrix, bro, Needs to have a center.");
-        return;
-    end
+        disp("Wrong matrix")
 
     if no_diagonals
         for row = 1:num_of_rows
