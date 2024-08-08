@@ -7,27 +7,31 @@ function does_have_a_neighbour = similar_neighbours(mat, no_diagonals) %the
     [num_of_row, num_of_col] = size(mat);
 
     if num_of_row ~= num_of_col || ~rem(num_of_row, 2) %input tests, have
-        %to have a center and be a square
+        %to have a center and be a square matrix
         disp("Wrong matrix, bro, needs to have a center.");
         return;
     end
     
-    flex_mat = mat;
-    center_value = mat((num_of_row+1)/2, (num_of_col+1)/2);
+    center_value = mat((num_of_row+1)/2, (num_of_col+1)/2); %isolating the
+    %element which will compare everything to.
 
-    if no_diagonals
-        hor_vec = mat((num_of_row+1)/2, :);
+    if no_diagonals %taking the main cross, without any elements outside
+        %the center row or center coloumn
+        hor_vec = mat((num_of_row+1)/2, :); 
         ver_vec = mat(:, (num_of_col+1)/2);
+        %initilizing the center of the vectors to an unused value
         hor_vec((num_of_row+1)/2) = -inf;
         ver_vec((num_of_col+1)/2) = -inf;
     else
-        
+        test_mat = ismember(mat, center_value); %the ismember will return
+        %a logical matrix of comparing the center value with each element
+        %of the matrix, thus determine if there is another element of this
+        %value
     end
 
-    temp_bin_mat = ismember(flex_mat, center_value);
     if any(center_value == hor_vec) || any(center_value == ver_vec) ||...
-            any(temp_bin_mat(:))
+            sum(test_mat(:)) > 1 %
             does_have_a_neighbour = true;
-    elseif
+    else
             does_have_a_neighbour = flase;
     end
