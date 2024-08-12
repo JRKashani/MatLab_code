@@ -34,7 +34,7 @@ function does_have_a_neighbour = similar_neighbours(mat, no_diagonals) %the
         %a logical matrix of comparing the center value with each element
         %of the matrix, thus determine if there is another element of this
         %value
-        test_mat = mat;%using a buffer matrix so not to change the original
+        test_mat = mat;%using a buffer matrix so not 
         test_mat((num_of_row+1)/2, (num_of_col+1)/2) = NaN;
         for RowIdx = 1:num_of_row
             for ColIdx = 1:num_of_col
