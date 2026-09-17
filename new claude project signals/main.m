@@ -55,14 +55,14 @@ function main()
         error('main:cannotWriteLog', 'Could not open mission log at %s.', paths.logFile);
     end
 
-    fprintf(fid, 'Project run started at %s\n', datestr(now));
+    fprintf(fid, 'Project run started at %s\n', char(datetime('now', 'Format', 'yyyy-MM-dd HH:mm:ss')));
     missionStatus = struct();
     results = struct();
 
     % 3) Generate or load signal.
     if RUN_GENERATION
         [missionStatus.generation, results.generation] = runMission(fid, 'Generate signal', @() ...
-            generateSignalMission(paths.configPath, paths.signalMatPath));
+            generateSyntheticAccelSignal(paths.configPath, paths.signalMatPath));
 
         if missionStatus.generation
             loaded = load(paths.signalMatPath);
@@ -171,10 +171,5 @@ function main()
     fprintf('Completed project mission set.\n');
     fprintf('Results and log stored in: %s\n', paths.resultsDir);
     fprintf('Final summary saved to: %s\n', paths.finalResultsPath);
-end
-
-function generateSignalMission(configPath, matPath)
-%GENERATESIGNALMISSION Thin wrapper to keep main.m orchestration-only.
-    [~, ~] = generateSyntheticAccelSignal(configPath, matPath);
 end
 

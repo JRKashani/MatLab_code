@@ -1,13 +1,96 @@
-Project run started at 17-Sep-2026 12:28:08
-FAILURE: Generate signal
-Error using main>generateSignalMission
-Too many output arguments.
+Project run started at 2026-09-17 14:38:37
+SUCCESS: Generate signal
+FAILURE: Signal vs time plot
+Unable to perform assignment because dot indexing is not supported for variables of this type.
 
-Error in main>@()generateSignalMission(paths.configPath,paths.signalMatPath) (line 65)
-            generateSignalMission(paths.configPath, paths.signalMatPath));
+Error in plotSignalVsTime>defaultSignalPlotOptions (line 96)
+            options.(name) = defaults.(name);
+
+Error in plotSignalVsTime (line 22)
+    options = defaultSignalPlotOptions(options);
+
+Error in main>@()plotSignalVsTime(signal,time,paths.resultsDir) (line 92)
+            plotSignalVsTime(signal, time, paths.resultsDir));
 
 Error in runMission (line 9)
             result = missionFn();
 
-Error in main (line 64)
-        [missionStatus.generation, results.generation] = runMission(fid, 'Generate signal', @() ...
+Error in main (line 91)
+        [missionStatus.timePlot, resultTmp] = runMission(fid, 'Signal vs time plot', @() ...
+FAILURE: Histogram plot
+Error using plotHistogram (line 25)
+signalData must include combinedSignal, pureSineSignal, and pureNoiseSignal fields.
+
+Error in main>@()plotHistogram(signal,paths.resultsDir) (line 98)
+            plotHistogram(signal, paths.resultsDir));
+
+Error in runMission (line 9)
+            result = missionFn();
+
+Error in main (line 97)
+        [missionStatus.histograms, resultTmp] = runMission(fid, 'Histogram plot', @() ...
+SUCCESS: Windowed moments
+FAILURE: FFT
+Undefined function 'runFFTAnalysis' for input arguments of type 'double'.
+
+Error in main>@()runFFTAnalysis(signal,sampleRange,cfg.Fs,'combinedSignal',paths.resultsDir,'m/s^2',true,true) (line 118)
+            runFFTAnalysis(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir, 'm/s^2', true, true));
+
+Error in runMission (line 9)
+            result = missionFn();
+
+Error in main (line 117)
+        [missionStatus.fft, resultTmp] = runMission(fid, 'FFT', @() ...
+FAILURE: Periodogram PSD
+Undefined function 'hannWindowManual' for input arguments of type 'double'.
+
+Error in runPeriodogramPSD (line 14)
+    window = hannWindowManual(numel(x));
+
+Error in main>@()runPeriodogramPSD(signal,sampleRange,cfg.Fs,'combinedSignal',paths.resultsDir) (line 124)
+            runPeriodogramPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
+
+Error in runMission (line 9)
+            result = missionFn();
+
+Error in main (line 123)
+        [missionStatus.periodogram, resultTmp] = runMission(fid, 'Periodogram PSD', @() ...
+FAILURE: Welch PSD
+Undefined function 'hannWindowManual' for input arguments of type 'double'.
+
+Error in runWelchPSD (line 20)
+    window = hannWindowManual(segmentLength);
+
+Error in main>@()runWelchPSD(signal,sampleRange,cfg.Fs,'combinedSignal',paths.resultsDir) (line 130)
+            runWelchPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
+
+Error in runMission (line 9)
+            result = missionFn();
+
+Error in main (line 129)
+        [missionStatus.welch, resultTmp] = runMission(fid, 'Welch PSD', @() ...
+FAILURE: Burg PSD
+Undefined function 'computeBurgPSD' for input arguments of type 'double'.
+
+Error in runBurgPSD (line 16)
+    [psd, f] = computeBurgPSD(x, Fs, order, nfft);
+
+Error in main>@()runBurgPSD(signal,sampleRange,cfg.Fs,'combinedSignal',paths.resultsDir) (line 136)
+            runBurgPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
+
+Error in runMission (line 9)
+            result = missionFn();
+
+Error in main (line 135)
+        [missionStatus.burg, resultTmp] = runMission(fid, 'Burg PSD', @() ...
+FAILURE: Validation
+Undefined function 'validateSyntheticAnalysis' for input arguments of type 'struct'.
+
+Error in main>@()validateSyntheticAnalysis(paths.signalMatPath,struct('printSummary',false)) (line 148)
+            validateSyntheticAnalysis(paths.signalMatPath, struct('printSummary', false)));
+
+Error in runMission (line 9)
+            result = missionFn();
+
+Error in main (line 147)
+        [missionStatus.validation, resultTmp] = runMission(fid, 'Validation', @() ...
