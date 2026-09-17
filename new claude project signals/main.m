@@ -89,13 +89,13 @@ function main()
     % 5) Run enabled missions independently.
     if RUN_TIME_PLOT
         [missionStatus.timePlot, resultTmp] = runMission(fid, 'Signal vs time plot', @() ...
-            plotSignalVsTime(signal, time, paths.resultsDir));
+            plotSignalVsTime(data, paths.resultsDir));
         results.timePlot = resultTmp;
     end
 
     if RUN_HISTOGRAMS
         [missionStatus.histograms, resultTmp] = runMission(fid, 'Histogram plot', @() ...
-            plotHistogram(signal, paths.resultsDir));
+            plotHistogram(data, paths.resultsDir));
         results.histograms = resultTmp;
     end
 
@@ -115,7 +115,7 @@ function main()
 
     if RUN_FFT
         [missionStatus.fft, resultTmp] = runMission(fid, 'FFT', @() ...
-            runFFTAnalysis(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir, 'm/s^2', true, true));
+            analyzeAccelFFT(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir, 'm/s^2', true, true));
         results.fft = resultTmp;
     end
 
