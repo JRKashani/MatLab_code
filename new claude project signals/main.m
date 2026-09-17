@@ -100,8 +100,16 @@ function main()
     end
 
     if RUN_MOMENTS
+        momentsOptions = struct();
+        momentsOptions.outputFolder = paths.resultsDir;
+        momentsOptions.windowLengths = round(DEFINE().WM_WINDOW_SIZES_SEC * cfg.Fs);
+        momentsOptions.windowLengths = momentsOptions.windowLengths(momentsOptions.windowLengths >= 8);
+        momentsOptions.savePng = true;
+        momentsOptions.saveFig = true;
+        momentsOptions.plotTitle = 'Windowed moments';
+
         [missionStatus.windowedMoments, resultTmp] = runMission(fid, 'Windowed moments', @() ...
-            computeWindowedMoments(signal, max(64, round(0.25 * cfg.Fs)), cfg.Fs, paths.resultsDir));
+            analyzeWindowedMoments(signal, sampleRange, cfg.Fs, momentsOptions));
         results.windowedMoments = resultTmp;
     end
 

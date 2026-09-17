@@ -62,16 +62,33 @@ D.HISTOGRAM_BASE_FILENAME   = 'signal_histograms';
 % WINDOWED MOMENTS SETTINGS
 % =========================
 
-WM_WINDOW_SIZES_SEC = [0.1 0.25 0.5 1 2];
+D.WM_WINDOW_SIZES_SEC = [0.1 0.25 0.5 1 2];
 
 % Leave empty or 0 for automatic step-size selection.
 % Otherwise specify the desired step between evaluated centers in seconds.
-WM_STEP_SEC = [];
+D.WM_STEP_SEC = [];
 
 % Runtime target for one complete signal analysis.
-WM_MAX_RUNTIME_SEC = 30;
+D.WM_MAX_RUNTIME_SEC = 30;
 
 % Aim somewhat below the hard target because runtime prediction is imperfect.
-WM_RUNTIME_SAFETY_FACTOR = 0.80;
+D.WM_RUNTIME_SAFETY_FACTOR = 0.80;
+
+% =========================
+% FFT PEAK DETECTION SETTINGS
+% =========================
+
+% Toggle automatic FFT peak detection and annotation for the one-sided,
+% positive-frequency amplitude spectrum. Setting this to false disables
+% all peak detection without editing the FFT calculations themselves.
+D.FFT_MARK_PEAKS = true;
+
+% Minimum prominence, in FFT amplitude units, required for a peak to
+% be considered meaningful. This applies only to the positive-frequency
+% one-sided amplitude spectrum used for FFT analysis.
+D.FFT_MIN_PEAK_PROMINENCE = 0.01;
+
+% Maximum number of strong peaks to retain after sorting by amplitude.
+D.FFT_MAX_PEAKS = 10;
 
 end

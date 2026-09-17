@@ -191,10 +191,11 @@ end
 function validation = validateAddFailure(validation, testName, details)
     validation.allPassed = false;
     validation.failedTests{end+1} = testName;
-    if ~isfield(validation.details, testName)
-        validation.details.(testName) = {};
+    safeField = matlab.lang.makeValidName(testName);
+    if ~isfield(validation.details, safeField)
+        validation.details.(safeField) = {};
     end
-    validation.details.(testName){end+1} = details;
+    validation.details.(safeField){end+1} = details;
 end
 
 function value = getOption(options, fieldName, defaultValue)

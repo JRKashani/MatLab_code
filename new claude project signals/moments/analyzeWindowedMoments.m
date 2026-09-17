@@ -17,6 +17,8 @@ function result = analyzeWindowedMoments(signal, sampleRange, Fs, options)
 %       result.Fs          - sampling frequency
 %       result.files       - saved figure files
 
+    D = DEFINE();
+
     if nargin < 4 || isempty(options)
         options = struct();
     end
@@ -147,6 +149,11 @@ function result = analyzeWindowedMoments(signal, sampleRange, Fs, options)
     result.sampleRange = sampleRange;
     result.Fs = Fs;
     result.windowLengths = windowLengths;
+    result.settings = struct();
+    result.settings.WM_WINDOW_SIZES_SEC = D.WM_WINDOW_SIZES_SEC;
+    result.settings.WM_STEP_SEC = D.WM_STEP_SEC;
+    result.settings.WM_MAX_RUNTIME_SEC = D.WM_MAX_RUNTIME_SEC;
+    result.settings.WM_RUNTIME_SAFETY_FACTOR = D.WM_RUNTIME_SAFETY_FACTOR;
 
     summaryCount = numel(windowLengths);
     result.summary = repmat(struct('windowLength', NaN, 'mean', NaN, 'rms', NaN, 'skewness', NaN, 'kurtosis', NaN), 1, summaryCount);
