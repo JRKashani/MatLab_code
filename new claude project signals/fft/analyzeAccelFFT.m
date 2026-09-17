@@ -60,11 +60,9 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
         saveFig = true;
     end
 
-    % These two constants control the (deliberately simple) peak
-    % detector. They live here, at the top, so they are easy to find
-    % and tune without hunting through the rest of the function.
-    numPeaksToReport      = 5;  % how many dominant peaks to keep
-    minPeakSeparationBins = 3;  % minimum bin spacing between reported peaks
+    % Peak detection settings live in DEFINE.m so they can be changed
+    % without editing the FFT calculation itself.
+    D = DEFINE();
 
     % ---------------------------------------------------------------
     % 1. Validate inputs. An invalid range is an ERROR, not something to
@@ -219,22 +217,13 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
     amplitudeSpectrum = amplitudeSpectrum / coherentGain;
 
     % ---------------------------------------------------------------
-    % 8. Dominant peak detection (simple and transparent by design).
+    % 8. Detect prominent spectral peaks on the positive-frequency,
+    %    one-sided FFT amplitude spectrum only.
     %
-    % A bin is a peak candidate if it is strictly larger than both of
-    % its immediate neighbors (a local maximum). The DC bin is excluded,
-    % since it does not represent an oscillation.
-    %
-    % A single physical spectral peak is normally spread across several
-    % adjacent bins (its main lobe, widened further by the Hann window).
-    % To avoid reporting several neighboring bins of that same lobe as
-    % if they were independent "dominant frequencies", candidates are
-    % ranked by amplitude and accepted greedily, skipping any candidate
-    % that falls within minPeakSeparationBins of a peak already kept.
-    % This is a standard, simple non-maximum-suppression rule.
+    % Peak detection is deliberately kept in the FFT calculation result,
+    % while any later labeling on the plot is a separate display concern.
     % ---------------------------------------------------------------
-    [peakFrequenciesHz, peakAmplitudes] = findDominantPeaks( ...
-        amplitudeSpectrum, frequencyHz, numPeaksToReport, minPeakSeparationBins);
+    peaks = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D);
 
     % ---------------------------------------------------------------
     % 9. Assemble the output structure.
@@ -245,8 +234,9 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
     result.frequencyResolutionHz = df;
     result.sampleCount           = N;
     result.sampleRange           = [startSample, endSample];
-    result.peakFrequenciesHz     = peakFrequenciesHz;
-    result.peakAmplitudes        = peakAmplitudes;
+    result.peaks                 = peaks;
+    result.peakFrequenciesHz     = peaks.frequencyHz;
+    result.peakAmplitudes        = peaks.amplitude;
 
     % ---------------------------------------------------------------
     % 10. Plot. Linear y-axis by design, so peak heights stay directly
@@ -260,11 +250,19 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
     fig = figure('Visible', 'on');
     plot(frequencyHz, amplitudeSpectrum, 'b-', 'LineWidth', 1);
     hold on;
-    plot(peakFrequenciesHz, peakAmplitudes, 'rv', 'MarkerFaceColor', 'r');
-    for k = 1:numel(peakFrequenciesHz)
-        text(peakFrequenciesHz(k), peakAmplitudes(k), ...
-            sprintf('  %.2f Hz', peakFrequenciesHz(k)), ...
-            'VerticalAlignment', 'bottom', 'FontSize', 8);
+    if isfield(peaks, 'enabled') && peaks.enabled && ~isempty(peaks.frequencyHz)
+        markerStyle = 'rv';
+        plot(peaks.frequencyHz, peaks.amplitude, markerStyle, 'MarkerFaceColor', 'r', 'MarkerSize', 6);
+        for k = 1:numel(peaks.frequencyHz)
+            peakFreq = peaks.frequencyHz(k);
+            peakAmp  = peaks.amplitude(k);
+            labelText = sprintf('%.2f Hz\n%.3g %s', peakFreq, peakAmp, unitsLabel);
+            text(peakFreq, peakAmp, labelText, ...
+                'HorizontalAlignment', 'center', ...
+                'VerticalAlignment', 'bottom', ...
+                'FontSize', 8, ...
+                'Interpreter', 'none');
+        end
     end
     hold off;
     grid on;
@@ -300,46 +298,125 @@ end
 % than scattering small private helpers across several files.
 % ===================================================================
 
-function [peakFreqs, peakAmps] = findDominantPeaks(amplitudeSpectrum, frequencyHz, numPeaksToReport, minSeparationBins)
-    numBins = numel(amplitudeSpectrum);
+function peaks = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D)
+    peaks = struct('enabled', false, 'frequencyHz', [], 'amplitude', [], 'prominence', []);
 
-    % Vectorized local-maximum test over interior bins (2 .. numBins-1),
-    % which automatically excludes the DC bin (index 1).
-    isLocalMax = false(numBins, 1);
-    if numBins >= 3
-        isLocalMax(2:end-1) = amplitudeSpectrum(2:end-1) > amplitudeSpectrum(1:end-2) & ...
-                               amplitudeSpectrum(2:end-1) > amplitudeSpectrum(3:end);
+    if nargin < 3 || isempty(D)
+        D = DEFINE();
     end
-    candidateIdx = find(isLocalMax);
 
-    if isempty(candidateIdx)
-        peakFreqs = [];
-        peakAmps  = [];
+    if ~isfield(D, 'FFT_MARK_PEAKS') || isempty(D.FFT_MARK_PEAKS) || ~D.FFT_MARK_PEAKS
         return;
     end
 
-    % Rank candidates by amplitude, strongest first.
-    [~, order]   = sort(amplitudeSpectrum(candidateIdx), 'descend');
-    candidateIdx = candidateIdx(order);
-
-    % Greedily accept peaks, skipping any candidate too close (in bin
-    % index) to one already accepted -- this prevents several bins of
-    % the same broadened lobe from being reported as separate peaks.
-    selectedIdx = [];
-    for k = 1:numel(candidateIdx)
-        idx = candidateIdx(k);
-        if isempty(selectedIdx) || all(abs(selectedIdx - idx) > minSeparationBins)
-            selectedIdx(end+1) = idx; %#ok<AGROW>
-        end
-        if numel(selectedIdx) >= numPeaksToReport
-            break;
-        end
+    minProminence = 0.01;
+    if isfield(D, 'FFT_MIN_PEAK_PROMINENCE') && ~isempty(D.FFT_MIN_PEAK_PROMINENCE)
+        minProminence = D.FFT_MIN_PEAK_PROMINENCE;
     end
 
-    % Report in increasing-frequency order for a readable plot/output.
-    selectedIdx = sort(selectedIdx);
-    peakFreqs   = frequencyHz(selectedIdx);
-    peakAmps    = amplitudeSpectrum(selectedIdx);
+    maxPeaks = 10;
+    if isfield(D, 'FFT_MAX_PEAKS') && ~isempty(D.FFT_MAX_PEAKS)
+        maxPeaks = D.FFT_MAX_PEAKS;
+    end
+    maxPeaks = max(0, round(maxPeaks));
+
+    positiveMask = frequencyHz > 0;
+    positiveFreq = frequencyHz(positiveMask);
+    positiveAmp  = amplitudeSpectrum(positiveMask);
+
+    if isempty(positiveFreq) || numel(positiveFreq) < 3
+        peaks.enabled = true;
+        return;
+    end
+
+    try
+        [peakAmp, peakFreq, ~, peakProm] = findpeaks(positiveAmp, positiveFreq, ...
+            'MinPeakProminence', max(0, minProminence), 'SortStr', 'descend');
+        usedFallback = false;
+    catch
+        [peakAmp, peakFreq, peakProm] = fallbackFindPeaks(positiveFreq, positiveAmp, minProminence);
+        usedFallback = true;
+    end
+
+    if isempty(peakAmp)
+        peaks.enabled = true;
+        return;
+    end
+
+    if maxPeaks == 0
+        peaks.enabled = true;
+        peaks.frequencyHz = [];
+        peaks.amplitude = [];
+        peaks.prominence = [];
+        return;
+    end
+
+    keepCount = min(numel(peakAmp), maxPeaks);
+    selectedAmp = peakAmp(1:keepCount);
+    selectedFreq = peakFreq(1:keepCount);
+    if ~usedFallback && numel(peakProm) >= keepCount
+        selectedProm = peakProm(1:keepCount);
+    else
+        selectedProm = zeros(keepCount, 1);
+        selectedProm(:) = NaN;
+    end
+
+    [selectedFreq, sortOrder] = sort(selectedFreq, 'ascend');
+    selectedAmp = selectedAmp(sortOrder);
+    selectedProm = selectedProm(sortOrder);
+
+    peaks.enabled = true;
+    peaks.frequencyHz = selectedFreq(:);
+    peaks.amplitude = selectedAmp(:);
+    peaks.prominence = selectedProm(:);
+end
+
+function [peakAmp, peakFreq, peakProm] = fallbackFindPeaks(frequencyHz, amplitudeSpectrum, minProminence)
+    n = numel(amplitudeSpectrum);
+    if n < 3
+        peakAmp = [];
+        peakFreq = [];
+        peakProm = [];
+        return;
+    end
+
+    isPeak = false(n, 1);
+    isPeak(2:end-1) = amplitudeSpectrum(2:end-1) > amplitudeSpectrum(1:end-2) & ...
+        amplitudeSpectrum(2:end-1) >= amplitudeSpectrum(3:end);
+
+    idx = find(isPeak);
+    if isempty(idx)
+        peakAmp = [];
+        peakFreq = [];
+        peakProm = [];
+        return;
+    end
+
+    peakAmp = amplitudeSpectrum(idx);
+    peakFreq = frequencyHz(idx);
+
+    localRef = zeros(numel(idx), 1);
+    for k = 1:numel(idx)
+        thisIdx = idx(k);
+        leftBase = amplitudeSpectrum(max(1, thisIdx - 1));
+        rightBase = amplitudeSpectrum(min(numel(amplitudeSpectrum), thisIdx + 1));
+        baseVal = max(leftBase, rightBase);
+        localRef(k) = peakAmp(k) - baseVal;
+    end
+
+    valid = peakAmp > 0 & localRef >= max(0, minProminence);
+    peakAmp = peakAmp(valid);
+    peakFreq = peakFreq(valid);
+    peakProm = localRef(valid);
+
+    if isempty(peakAmp)
+        peakProm = [];
+        return;
+    end
+
+    [peakAmp, order] = sort(peakAmp, 'descend');
+    peakFreq = peakFreq(order);
+    peakProm = peakProm(order);
 end
 
 function cleanName = sanitizeFileName(rawName)
