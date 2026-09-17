@@ -39,7 +39,7 @@ D.MAT_ROOT_VARNAME = 'syntheticAccelData';
 
 % --- plotting settings ---------------------------------------------------
 % Number of bins used for all acceleration histograms (see
-% plotAccelerationSignals.m). Kept identical across signals so bar
+% plotting/plotHistogram.m). Kept identical across signals so bar
 % widths line up and the three histograms are visually comparable.
 D.HISTOGRAM_BIN_COUNT = 100;
 
@@ -51,7 +51,7 @@ D.MAX_PLOT_POINTS = 20000;
 % Independent on/off switches: either can be toggled without touching
 % the other, so you can save .png previews without cluttering the
 % project with reloadable .fig files, or vice versa.
-D.SAVE_FIG_FILES = true;
+D.SAVE_FIG_FILES = false;
 D.SAVE_PNG_FILES = true;
 
 % Base filenames (without extension) for the two saved figures.
@@ -68,10 +68,11 @@ D.WM_WINDOW_SIZES_SEC = [0.1 0.25 0.5 1 2];
 % Otherwise specify the desired step between evaluated centers in seconds.
 D.WM_STEP_SEC = [];
 
-% Runtime target for one complete signal analysis.
+% Advisory calculation-time target for windowed moments. Automatic stepping
+% uses a timing pilot; figure rendering and file export are excluded.
 D.WM_MAX_RUNTIME_SEC = 30;
 
-% Aim somewhat below the hard target because runtime prediction is imperfect.
+% Reserve headroom because the timing pilot cannot predict runtime exactly.
 D.WM_RUNTIME_SAFETY_FACTOR = 0.80;
 
 % =========================

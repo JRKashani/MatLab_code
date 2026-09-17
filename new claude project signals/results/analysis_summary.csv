@@ -1,0 +1,10 @@
+key,value
+sampleRange,[1 600000]
+Fs,10000
+DC_mean,-0.000174792
+FFT_dominant_peaks,[57 121 303]
+Overall_SNR_dB,
+Periodogram_windows,
+Welch_windows,
+Burg_orders,
+Validation,PASS

@@ -1,7 +1,7 @@
 function result = runBurgPSD(signal, sampleRange, Fs, signalName, outputFolder)
-%RUNBURGPSD Thin wrapper for a Burg-style AR PSD estimate.
-%   TODO: move the algorithm and plotting into a dedicated PSD file with a
-%   more expressive options struct.
+%RUNBURGPSD Fit a Burg autoregressive spectrum to the selected samples.
+%   The model order controls spectral detail; cap it below the available
+%   sample count so even a short selected segment has a valid model.
 
     if nargin < 5 || isempty(outputFolder)
         outputFolder = fullfile(pwd, 'results');
@@ -10,8 +10,10 @@ function result = runBurgPSD(signal, sampleRange, Fs, signalName, outputFolder)
         signalName = 'signal';
     end
 
-    x = signal(:) - mean(signal(:));
-    order = min(40, max(4, floor(numel(x) / 20)));
+    [x, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 2);
+    meanRemoved = mean(x);
+    x = x - meanRemoved;
+    order = min(numel(x) - 1, min(40, max(4, floor(numel(x) / 20))));
     nfft = max(1024, 2^nextpow2(numel(x)));
     [psd, f] = computeBurgPSD(x, Fs, order, nfft);
 
@@ -32,5 +34,10 @@ function result = runBurgPSD(signal, sampleRange, Fs, signalName, outputFolder)
     result = struct();
     result.f = f;
     result.psd = psd;
+    result.sampleRange = sampleRange;
+    result.sampleCount = numel(x);
+    result.Fs = Fs;
+    result.meanRemoved = meanRemoved;
+    result.order = order;
     result.outputFile = fullfile(outputFolder, 'burg_psd.png');
 end

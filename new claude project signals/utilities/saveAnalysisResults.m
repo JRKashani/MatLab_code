@@ -30,6 +30,7 @@ function saveAnalysisResults(results, metadata, outputFolder)
         end
     end
 
+    analysisSubset = numericalResults(analysisSubset);
     matPath = fullfile(outputFolder, 'analysis_results.mat');
     save(matPath, 'analysisSubset', 'metadata', '-v7');
 
@@ -39,8 +40,10 @@ function saveAnalysisResults(results, metadata, outputFolder)
     if fid == -1
         error('saveAnalysisResults:cannotWriteSummary', 'Could not write summary file at %s.', txtPath);
     end
+    % Close the file on success and if formatting/writing raises an error.
+    summaryCleanup = onCleanup(@() fclose(fid));
     fprintf(fid, '%s', summaryText);
-    fclose(fid);
+    clear summaryCleanup;
 
     csvPath = fullfile(outputFolder, 'analysis_summary.csv');
     csvStruct = collectScalarSummary(analysisSubset, metadata);
@@ -199,6 +202,7 @@ function writeScalarCsv(csvPath, csvStruct)
     if fid == -1
         error('saveAnalysisResults:cannotWriteCsv', 'Could not write CSV summary at %s.', csvPath);
     end
+    csvCleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
     fprintf(fid, 'key,value\n');
     for k = 1:numel(fieldNames)
         key = fieldNames{k};
@@ -208,7 +212,6 @@ function writeScalarCsv(csvPath, csvStruct)
         end
         fprintf(fid, '%s,%s\n', key, strrep(val, ',', ';'));
     end
-    fclose(fid);
 end
 
 function text = bool2Str(flag)

@@ -20,7 +20,6 @@ function main()
     end
 
     paths = projectPaths(projectRoot);
-    addpath(genpath(projectRoot));
     addpath(paths.generationDir, paths.plottingDir, paths.momentsDir, paths.fftDir, paths.psdDir, paths.snrDir, paths.validationDir, paths.utilitiesDir);
     if ~exist(paths.resultsDir, 'dir')
         mkdir(paths.resultsDir);
@@ -54,6 +53,9 @@ function main()
     if fid == -1
         error('main:cannotWriteLog', 'Could not open mission log at %s.', paths.logFile);
     end
+    % The cleanup object also runs when generation, loading or saving throws.
+    % Keep the log open until all saves and the final status report finish.
+    logCleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
 
     fprintf(fid, 'Project run started at %s\n', char(datetime('now', 'Format', 'yyyy-MM-dd HH:mm:ss')));
     missionStatus = struct();
@@ -73,7 +75,6 @@ function main()
             cfg = data.Config;
             results.generation = struct('signal', signal, 'time', time, 'Fs', data.Fs, 'sampleRange', sampleRange, 'cfg', cfg);
         else
-            fclose(fid);
             error('main:signalGenerationFailed', 'Signal generation failed; mission set cannot continue without signal data.');
         end
     else
@@ -82,8 +83,7 @@ function main()
     end
 
     % 4) Define the sample range for analysis use.
-    %    This is intentionally kept plain and reusable; downstream analysis files
-    %    may clamp or validate it independently.
+    %    Inclusive, one-based endpoints; analyses reject invalid ranges.
     sampleRange = [1, numel(signal)];
 
     % 5) Run enabled missions independently.
@@ -104,8 +104,8 @@ function main()
         momentsOptions.outputFolder = paths.resultsDir;
         momentsOptions.windowLengths = round(DEFINE().WM_WINDOW_SIZES_SEC * cfg.Fs);
         momentsOptions.windowLengths = momentsOptions.windowLengths(momentsOptions.windowLengths >= 8);
-        momentsOptions.savePng = true;
-        momentsOptions.saveFig = true;
+        momentsOptions.savePng = DEFINE().SAVE_PNG_FILES;
+        momentsOptions.saveFig = DEFINE().SAVE_FIG_FILES;
         momentsOptions.plotTitle = 'Windowed moments';
 
         [missionStatus.windowedMoments, resultTmp] = runMission(fid, 'Windowed moments', @() ...
@@ -153,9 +153,26 @@ function main()
     metadata = struct();
     metadata.sampleRange = sampleRange;
     metadata.Fs = cfg.Fs;
-    metadata.meanDc = mean(signal);
+    metadata.meanDc = mean(signal(sampleRange(1):sampleRange(2)));
     metadata.signalName = 'combinedSignal';
-    saveAnalysisResults(results, metadata, paths.resultsDir);
+    % Failure to write a readable summary must not discard successful
+    % numerical missions. Attempt the final MAT bundle independently.
+    try
+        saveAnalysisResults(results, metadata, paths.resultsDir);
+        missionStatus.saveAnalysis = true;
+    catch ME
+        missionStatus.saveAnalysis = false;
+        fprintf(2, 'FAILURE: Save analysis summary - %s\n', ME.message);
+        fprintf(fid, 'FAILURE: Save analysis summary\n%s\n', getReport(ME, 'extended', 'hyperlinks', 'off'));
+    end
+
+    try
+        saveFinalResults(paths.finalResultsPath, results, missionStatus, flags);
+    catch ME
+        fprintf(2, 'FAILURE: Save final results - %s\n', ME.message);
+        fprintf(fid, 'FAILURE: Save final results\n%s\n', getReport(ME, 'extended', 'hyperlinks', 'off'));
+        rethrow(ME);
+    end
 
     % 7) Log final status summary.
     fprintf(fid, '\nFinal mission status:\n');
@@ -163,12 +180,13 @@ function main()
     for i = 1:numel(fieldNames)
         fprintf(fid, '  %s : %d\n', fieldNames{i}, missionStatus.(fieldNames{i}));
     end
-    fclose(fid);
-
-    % 8) Save final numerical results.
-    saveFinalResults(paths.finalResultsPath, results, missionStatus, flags);
-
-    fprintf('Completed project mission set.\n');
+    failed = fieldNames(~structfun(@(passed) passed, missionStatus));
+    if isempty(failed)
+        fprintf('Completed: all %d enabled missions/save checks passed.\n', numel(fieldNames));
+    else
+        fprintf(2, 'Completed with %d failure(s): %s. See mission_log.txt for details.\n', ...
+            numel(failed), strjoin(failed, ', '));
+    end
     fprintf('Results and log stored in: %s\n', paths.resultsDir);
     fprintf('Final summary saved to: %s\n', paths.finalResultsPath);
 end

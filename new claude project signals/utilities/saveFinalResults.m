@@ -14,5 +14,7 @@ function saveFinalResults(outputPath, results, missionStatus, flags)
         results = struct();
     end
 
+    % Preserve arrays and statuses without embedding every figure a second time.
+    results = numericalResults(results);
     save(outputPath, 'results', 'missionStatus', 'flags');
 end

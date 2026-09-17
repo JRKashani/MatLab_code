@@ -11,7 +11,8 @@ function paths = projectPaths(projectRoot)
     paths.projectRoot = projectRoot;
     paths.resultsDir = fullfile(projectRoot, 'results');
     paths.generationDir = fullfile(projectRoot, 'generation');
-    paths.configPath = fullfile(paths.generationDir, 'main_config.txt');
+    % Keep the user-edited configuration beside main.m; generation/ holds code.
+    paths.configPath = fullfile(projectRoot, 'main_config.txt');
     paths.signalMatPath = fullfile(paths.resultsDir, 'synthetic_accel_data.mat');
     paths.logFile = fullfile(paths.resultsDir, 'mission_log.txt');
     paths.finalResultsPath = fullfile(paths.resultsDir, 'final_results.mat');

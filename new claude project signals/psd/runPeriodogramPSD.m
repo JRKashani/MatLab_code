@@ -1,6 +1,8 @@
 function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputFolder)
-%RUNPERIODOGRAMPSD Thin wrapper around the existing periodogram-based PSD logic.
-%   TODO: move this to a dedicated PSD module with explicit options struct.
+%RUNPERIODOGRAMPSD Hann-windowed PSD of the inclusive sampleRange.
+%   Remove the selected segment's mean before estimating spectral power.
+%   Returned PSD units are signal-units squared per Hz; integrate over Hz
+%   to obtain mean-square power. NFFT padding refines the displayed grid.
 
     if nargin < 5 || isempty(outputFolder)
         outputFolder = fullfile(pwd, 'results');
@@ -9,7 +11,10 @@ function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputF
         signalName = 'signal';
     end
 
-    x = signal(:) - mean(signal(:));
+    % A symmetric Hann window needs at least three samples for nonzero power.
+    [x, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 3);
+    meanRemoved = mean(x);
+    x = x - meanRemoved;
     nfft = max(1024, 2^nextpow2(numel(x)));
     window = hannWindowManual(numel(x));
     [psd, f] = computePeriodogramPSD(x, Fs, window, nfft);
@@ -31,5 +36,9 @@ function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputF
     result = struct();
     result.f = f;
     result.psd = psd;
+    result.sampleRange = sampleRange;
+    result.sampleCount = numel(x);
+    result.Fs = Fs;
+    result.meanRemoved = meanRemoved;
     result.outputFile = fullfile(outputFolder, 'periodogram.png');
 end

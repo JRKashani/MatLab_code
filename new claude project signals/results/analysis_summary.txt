@@ -1,0 +1,9 @@
+Synthetic analysis summary
+=========================
+Sample range: [1 600000]
+Fs: 10000 Hz
+DC mean: -0.000174792
+Moment windows: [1000 2500 5000 10000 20000]
+FFT dominant peaks: 57.000Hz@2; 121.000Hz@0.998; 303.000Hz@0.5
+FFT DC mean: -0.000174792
+Validation: PASS

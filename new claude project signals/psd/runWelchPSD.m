@@ -1,7 +1,7 @@
 function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
-%RUNWELCHPSD Thin wrapper for a Welch-style PSD routine.
-%   TODO: separate algorithm and plotting responsibilities once the PSD folder
-%   is fully expanded.
+%RUNWELCHPSD Average overlapping Hann-windowed PSDs within sampleRange.
+%   Each segment uses at most 1024 samples with 50 percent overlap. Averaging
+%   reduces spectral variance; shorter segments reduce frequency resolution.
 
     if nargin < 5 || isempty(outputFolder)
         outputFolder = fullfile(pwd, 'results');
@@ -10,7 +10,9 @@ function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
         signalName = 'signal';
     end
 
-    x = signal(:) - mean(signal(:));
+    [x, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 3);
+    meanRemoved = mean(x);
+    x = x - meanRemoved;
     n = numel(x);
     segmentLength = min(1024, n);
     overlap = floor(0.5 * segmentLength);
@@ -38,5 +40,9 @@ function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
     result = struct();
     result.f = f;
     result.psd = psd;
+    result.sampleRange = sampleRange;
+    result.sampleCount = numel(x);
+    result.Fs = Fs;
+    result.meanRemoved = meanRemoved;
     result.outputFile = fullfile(outputFolder, 'welch_psd.png');
 end
