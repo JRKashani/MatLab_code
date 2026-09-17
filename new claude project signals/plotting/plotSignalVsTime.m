@@ -11,7 +11,8 @@ function fig = plotSignalVsTime(signalData, outputFolder, options)
 %                 maxPlotPoints, saveFig, savePng, fileBase
 %
 %   The original data are never modified; for very long signals, only the
-%   displayed samples are downsampled for plotting.
+%   displayed samples are downsampled for plotting. All three axes use the
+%   same symmetric y-limits so their amplitudes can be compared directly.
 
     if nargin < 2 || isempty(outputFolder)
         outputFolder = fullfile(pwd, 'results');
@@ -50,6 +51,15 @@ function fig = plotSignalVsTime(signalData, outputFolder, options)
     titles = {'Combined signal', 'Pure sine signal', 'Pure noise signal'};
     colors = {'b', 'r', 'k'};
 
+    % Find the limit from the complete signals, not only the downsampled
+    % display points. This prevents a skipped peak from being clipped. Using
+    % symmetric limits also places zero at the same height in every subplot.
+    largestMagnitude = max(cellfun(@(x) max(abs(x), [], 'omitnan'), signalSet));
+    if isempty(largestMagnitude) || ~isfinite(largestMagnitude) || largestMagnitude == 0
+        largestMagnitude = 1;
+    end
+    sharedYLimits = 1.05 * [-largestMagnitude, largestMagnitude];
+
     if numel(time) > options.maxPlotPoints
         idx = unique(round(linspace(1, numel(time), options.maxPlotPoints)));
         timePlot = time(idx);
@@ -67,6 +77,7 @@ function fig = plotSignalVsTime(signalData, outputFolder, options)
         title(titles{k});
         xlabel('Time [s]');
         ylabel('Amplitude');
+        ylim(sharedYLimits);
         grid on;
     end
 

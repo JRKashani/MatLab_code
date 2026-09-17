@@ -76,32 +76,40 @@ end
 
 function testMomentsAgainstDirectWindows(testCase)
     x = (1:40)'.^2 - 50;
-    options = struct('windowLengths', [4 5], 'stepSec', 0.1, 'makePlots', false);
+    options = struct('windowLengths', [5 7], 'stepSec', 0.1, 'makePlots', false);
     result = analyzeWindowedMoments(x, [5 30], 10, options);
     selected = x(5:30);
     for i = 1:numel(result.series)
         series = result.series(i);
         L = series.windowLength;
-        for k = 1:numel(selected)
-            indices = max(1, k-floor(L/2)):min(numel(selected), k+ceil(L/2)-1);
+        halfWindow = (L - 1) / 2;
+        centers = (halfWindow + 1):(numel(selected) - halfWindow);
+        for j = 1:numel(centers)
+            k = centers(j);
+            indices = k-halfWindow:k+halfWindow;
             w = selected(indices);
             central = w - mean(w);
             expected = [mean(w), sqrt(mean(w.^2)), ...
                 mean(central.^3)/mean(central.^2)^1.5, mean(central.^4)/mean(central.^2)^2 - 3];
-            actual = [series.mean(k), series.rms(k), series.skewness(k), series.kurtosis(k)];
+            actual = [series.mean(j), series.rms(j), series.skewness(j), series.kurtosis(j)];
             verifyEqual(testCase, actual, expected, 'AbsTol', 1e-7);
-            verifyEqual(testCase, series.sampleCount(k), numel(w));
+            verifyEqual(testCase, series.sampleCount(j), L);
         end
-        verifyEqual(testCase, series.time, (4:29)'/10);
-        verifyEqual(testCase, series.sampleIndices, (5:30)');
+        expectedSamples = (sampleRangeStart(5, centers)).';
+        verifyEqual(testCase, series.sampleIndices, expectedSamples);
+        verifyEqual(testCase, series.time, (expectedSamples - 1)/10);
     end
 end
 
+function samples = sampleRangeStart(firstSample, localCenters)
+    samples = firstSample + localCenters - 1;
+end
+
 function testConstantAndOffsetSignals(testCase)
-    options = struct('windowLengths', 4, 'stepSec', 1, 'makePlots', false);
+    options = struct('windowLengths', 5, 'stepSec', 1, 'makePlots', false);
     result = analyzeWindowedMoments(3*ones(20, 1), [], 1, options);
-    verifyEqual(testCase, result.series.mean, 3*ones(20, 1));
-    verifyEqual(testCase, result.series.rms, 3*ones(20, 1));
+    verifyEqual(testCase, result.series.mean, 3*ones(16, 1));
+    verifyEqual(testCase, result.series.rms, 3*ones(16, 1));
     verifyTrue(testCase, all(isnan(result.series.skewness)));
     verifyTrue(testCase, all(isnan(result.series.kurtosis)));
     fluctuation = repmat([-2; -1; 1; 2], 10, 1);
@@ -115,18 +123,39 @@ function testSineMoments(testCase)
     x = sin(2*pi*(0:999)'/100);
     result = analyzeWindowedMoments(x, [], 100, ...
         struct('windowLengths', 100, 'stepSec', 0.01, 'makePlots', false));
-    interior = 51:950;
-    verifyEqual(testCase, result.series.rms(interior), repmat(sqrt(0.5), 900, 1), 'AbsTol', 1e-10);
-    verifyEqual(testCase, result.series.skewness(interior), zeros(900, 1), 'AbsTol', 1e-10);
-    verifyEqual(testCase, result.series.kurtosis(interior), -1.5*ones(900, 1), 'AbsTol', 1e-10);
+    verifyEqual(testCase, result.windowLengths, 101);
+    verifyEqual(testCase, result.series.sampleIndices([1 end]), [51; 950]);
+    for j = 1:numel(result.series.sampleIndices)
+        center = result.series.sampleIndices(j);
+        w = x(center-50:center+50);
+        central = w - mean(w);
+        expected = [sqrt(mean(w.^2)), mean(central.^3)/mean(central.^2)^1.5, ...
+            mean(central.^4)/mean(central.^2)^2 - 3];
+        actual = [result.series.rms(j), result.series.skewness(j), result.series.kurtosis(j)];
+        verifyEqual(testCase, actual, expected, 'AbsTol', 1e-10);
+    end
+end
+
+function testEvenWindowsRoundUpAndRequireCompleteSamples(testCase)
+    result = analyzeWindowedMoments((1:2001)', [], 1000, ...
+        struct('windowLengths', [1000 1001], 'stepSec', 0.001, 'makePlots', false));
+    % Both requests describe the same 1001-sample centered window.
+    verifyEqual(testCase, result.windowLengths, 1001);
+    verifyEqual(testCase, result.series.windowLength, 1001);
+    verifyEqual(testCase, result.series.sampleIndices([1 end]), [501; 1501]);
+    verifyEqual(testCase, result.series.time([1 end]), [0.5; 1.5]);
+    verifyTrue(testCase, all(result.series.sampleCount == 1001));
+    verifyEqual(testCase, result.series.mean(1), mean(1:1001), 'AbsTol', 1e-12);
+    verifyEqual(testCase, result.series.mean(end), mean(1001:2001), 'AbsTol', 1e-12);
 end
 
 function testStepAndPlotLimit(testCase)
     options = struct('windowLengths', 8, 'stepSec', 0.03, ...
         'maxPlotPoints', 7, 'saveFig', false, 'savePng', false);
     result = analyzeWindowedMoments(sin((1:100)'), [11 90], 100, options);
+    verifyEqual(testCase, result.windowLengths, 9);
     verifyEqual(testCase, result.settings.stepSamples, 3);
-    verifyEqual(testCase, result.series.sampleIndices, (11:3:90)');
+    verifyEqual(testCase, result.series.sampleIndices, (15:3:84)');
     lines = findall(result.figureHandle, 'Type', 'line');
     for k = 1:numel(lines)
         verifyLessThanOrEqual(testCase, numel(lines(k).XData), 7);
@@ -147,7 +176,7 @@ end
 function testRadicalPointsUseGlobalSelectedSignal(testCase)
     x = [1000*ones(10, 1); (1:50)'; -1000*ones(10, 1)];
     result = analyzeWindowedMoments(x, [11 60], 10, ...
-        struct('windowLengths', [4 9], 'stepSec', 0.1, 'makePlots', false));
+        struct('windowLengths', [5 9], 'stepSec', 0.1, 'makePlots', false));
     selected = (1:50)';
     centered = selected - mean(selected);
     expected = struct('mean', mean(selected), 'rms', sqrt(mean(selected.^2)), ...
@@ -163,7 +192,7 @@ function testRadicalPointsUseGlobalSelectedSignal(testCase)
             [distance, index] = max(abs(values - result.globalMoments.(name)));
             verifyTrue(testCase, point.defined);
             verifyEqual(testCase, point.seriesIndex, index);
-            verifyEqual(testCase, point.sampleIndex, index + 10);
+            verifyEqual(testCase, point.sampleIndex, result.series(i).sampleIndices(index));
             verifyEqual(testCase, point.time, (point.sampleIndex - 1)/10);
             verifyEqual(testCase, point.absoluteDeviation, distance);
             verifyEqual(testCase, point.value, values(index));
@@ -174,7 +203,7 @@ end
 function testSeparateMomentFiguresRetainRadicalPoints(testCase)
     x = sin((1:100)' / 5);
     x(44) = 30;
-    options = struct('windowLengths', [4 9], 'stepSec', 0.1, 'maxPlotPoints', 5, ...
+    options = struct('windowLengths', [5 9], 'stepSec', 0.1, 'maxPlotPoints', 5, ...
         'saveFig', true, 'savePng', true, 'outputFolder', testCase.TestData.outputFolder);
     result = analyzeWindowedMoments(x, [], 10, options);
     verifyNumElements(testCase, result.figureHandle, 4);
@@ -211,7 +240,7 @@ end
 
 function testUndefinedRadicalPointsAndTies(testCase)
     result = analyzeWindowedMoments(3*ones(20, 1), [], 1, ...
-        struct('windowLengths', [4 5], 'stepSec', 1, 'saveFig', false, 'savePng', false));
+        struct('windowLengths', [5 7], 'stepSec', 1, 'saveFig', false, 'savePng', false));
     for name = {'mean', 'rms'}
         points = result.radicalPoints.(name{1});
         verifyEqual(testCase, [points.seriesIndex], [1 1]);

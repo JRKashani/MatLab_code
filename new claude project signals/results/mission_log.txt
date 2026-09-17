@@ -1,22 +1,4 @@
-Project run started at 2026-09-17 17:06:08
+Project run started at 2026-09-17 22:08:54
 SUCCESS: Generate signal
 SUCCESS: Signal vs time plot
 SUCCESS: Histogram plot
-SUCCESS: Windowed moments
-SUCCESS: FFT
-SUCCESS: Periodogram PSD
-SUCCESS: Welch PSD
-SUCCESS: Burg PSD
-SUCCESS: Validation
-
-Final mission status:
-  generation : 1
-  timePlot : 1
-  histograms : 1
-  windowedMoments : 1
-  fft : 1
-  periodogram : 1
-  welch : 1
-  burg : 1
-  validation : 1
-  saveAnalysis : 1

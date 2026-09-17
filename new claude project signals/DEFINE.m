@@ -62,6 +62,8 @@ D.HISTOGRAM_BASE_FILENAME   = 'signal_histograms';
 % WINDOWED MOMENTS SETTINGS
 % =========================
 
+% Conversion to samples rounds each even result upward to the next odd value,
+% so every window has one center sample and equal left/right sample counts.
 D.WM_WINDOW_SIZES_SEC = [0.1 0.25 0.5 1 2];
 
 % Leave empty or 0 for automatic step-size selection.

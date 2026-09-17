@@ -1,8 +1,11 @@
 function result = analyzeWindowedMoments(signal, sampleRange, Fs, options)
 %ANALYZEWINDOWEDMOMENTS Efficient local mean, RMS, skewness and excess kurtosis.
-%   Window lengths are in samples. Even windows have one extra sample on
-%   the left (length 4 uses offsets -2,-1,0,1); edges shrink to available data.
-%   Times refer to the original recording, including a selected range offset.
+%   Window lengths are in samples. Every requested even length is increased
+%   by one, giving an odd window with the same number of samples on both
+%   sides of its center. A 1001-sample window therefore uses 500 samples on
+%   each side and its first result is centered on selected sample 501.
+%   A result is produced only where the complete window exists; edge windows
+%   are never shortened. Times include the selected range's recording offset.
 %
 %   options fields (defaults come from DEFINE):
 %     windowLengths, stepSec, maxRuntimeSec, runtimeSafetyFactor,
@@ -26,13 +29,18 @@ function result = analyzeWindowedMoments(signal, sampleRange, Fs, options)
     D = DEFINE();
     if nargin < 4 || isempty(options), options = struct(); end
     if nargin < 2, sampleRange = []; end
-    [segment, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 2);
+    [segment, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 3);
     N = numel(segment);
     lengths = getOption(options, 'windowLengths', round(D.WM_WINDOW_SIZES_SEC * Fs));
     validateattributes(lengths, {'numeric'}, {'vector', 'real', 'finite', 'integer', 'positive'});
-    lengths = sort(unique(lengths(:)));
-    lengths = lengths(lengths >= 2 & lengths <= N);
-    if isempty(lengths), lengths = N; end
+    % Round upward to the nearest odd length. This keeps the requested scale
+    % while making the current sample the unambiguous center of every window.
+    lengths = lengths(:) + double(mod(lengths(:), 2) == 0);
+    lengths = sort(unique(lengths));
+    lengths = lengths(lengths >= 3 & lengths <= N);
+    if isempty(lengths)
+        lengths = N - double(mod(N, 2) == 0);
+    end
 
     stepSec = getOption(options, 'stepSec', D.WM_STEP_SEC);
     target = getOption(options, 'maxRuntimeSec', D.WM_MAX_RUNTIME_SEC);
@@ -69,23 +77,31 @@ function result = analyzeWindowedMoments(signal, sampleRange, Fs, options)
     autoStep = isempty(stepSec) || stepSec == 0;
     estimatedFullSeconds = NaN;
     if autoStep
-        pilotCenters = unique(round(linspace(1, N, min(N, 1024)))).';
+        pilotCount = 0;
         pilotTimer = tic;
         for i = 1:numel(lengths)
+            halfWindow = (lengths(i) - 1) / 2;
+            validCenters = (halfWindow + 1):(N - halfWindow);
+            pilotCenters = unique(round(linspace(validCenters(1), validCenters(end), ...
+                min(numel(validCenters), 1024)))).';
             calculateSeries(segment, sums, runIds, offset, scale, pilotCenters, lengths(i));
+            pilotCount = pilotCount + numel(pilotCenters);
         end
-        estimatedFullSeconds = toc(pilotTimer) * N / numel(pilotCenters);
+        fullCenterCount = sum(N - lengths + 1);
+        estimatedFullSeconds = toc(pilotTimer) * fullCenterCount / pilotCount;
         remaining = max(realmin, target * safety - toc(timer));
         step = min(N, max(1, ceil(estimatedFullSeconds / remaining)));
     else
         step = min(N, max(1, round(stepSec * Fs)));
     end
-    centers = (1:step:N).';
-    times = (sampleRange(1) + centers - 2) / Fs;
     seriesCells = cell(1, numel(lengths));
     summaryCells = cell(1, numel(lengths));
     for i = 1:numel(lengths)
+        halfWindow = (lengths(i) - 1) / 2;
+        centers = (halfWindow + 1:step:N - halfWindow).';
         current = calculateSeries(segment, sums, runIds, offset, scale, centers, lengths(i));
+        current.sampleIndices = sampleRange(1) + centers - 1;
+        current.time = (current.sampleIndices - 1) / Fs;
         seriesCells{i} = current;
         summaryCells{i} = struct('windowLength', lengths(i), ...
             'mean', mean(current.mean), 'rms', mean(current.rms), ...
@@ -94,11 +110,6 @@ function result = analyzeWindowedMoments(signal, sampleRange, Fs, options)
     end
     series = [seriesCells{:}];
     summary = [summaryCells{:}];
-    % Attach common coordinates after assembling the uniform struct array.
-    for i = 1:numel(series)
-        series(i).time = times;
-        series(i).sampleIndices = sampleRange(1) + centers - 1;
-    end
     % Use the same population definitions globally and locally. The global
     % reference is calculated directly from the selected signal, never by
     % averaging overlapping windows (which would weight samples unevenly).
@@ -175,11 +186,11 @@ end
 
 function series = calculateSeries(x, sums, runIds, offset, scale, centers, lengthSamples)
 % Four prefix-sum differences give each window's raw moments in constant
-% time. Total normal-case work is O(N + windows * evaluatedCenters).
-    left = floor(lengthSamples / 2);
-    right = lengthSamples - left - 1;
-    first = max(1, centers - left);
-    last = min(numel(x), centers + right);
+% time. Centers are restricted beforehand, so every calculation uses exactly
+% lengthSamples values. Total work is O(N + windows * evaluatedCenters).
+    halfWindow = (lengthSamples - 1) / 2;
+    first = centers - halfWindow;
+    last = centers + halfWindow;
     count = last - first + 1;
     raw = (sums(last + 1, :) - sums(first, :)) ./ count;
     mu = raw(:, 1);
