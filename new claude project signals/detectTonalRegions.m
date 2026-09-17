@@ -1,103 +1,79 @@
-function [tonalMask, regions] = detectTonalRegions(psd, noiseFloor, thresholdDb, ...
-    mergeGapBins, expansionBins, minBandwidthBins, excludedBins)
-%DETECTTONALREGIONS Identify and group frequency bins that rise
-% sufficiently above the local noise floor into tonal "regions".
+function [detectedMask, regions] = detectTonalRegions(Pxx, noiseFloor, thresholdRatio, minBandWidthBins, expandBins)
+%DETECTTONALREGIONS Identify and group tonal (narrowband) regions above a noise floor.
 %
-% [tonalMask, regions] = detectTonalRegions(psd, noiseFloor, thresholdDb, ...
-%     mergeGapBins, expansionBins, minBandwidthBins, excludedBins)
+%   [detectedMask, regions] = DETECTTONALREGIONS(Pxx, noiseFloor, ...
+%       thresholdRatio, minBandWidthBins, expandBins)
 %
-% Inputs:
-%   psd              - one-sided PSD, column vector
-%   noiseFloor       - local noise-floor PSD estimate, same length as psd
-%   thresholdDb      - detection threshold, in dB above the local noise
-%                       floor (e.g. 6 dB corresponds to a factor of
-%                       10^(6/10) ~= 4x the local noise power)
-%   mergeGapBins     - candidate bins separated by this many bins or
-%                       fewer are grouped into ONE region rather than
-%                       reported as separate tones (keeps a single peak,
-%                       broadened by Hann-window leakage, from being
-%                       split into multiple detections)
-%   expansionBins    - extra bins added on each side of a detected region
-%                       to capture the leakage skirt around the peak
-%   minBandwidthBins - minimum width, in bins, enforced for every region
-%   excludedBins     - logical mask, same length as psd; true bins can
-%                       never be classified as tonal (e.g. bins below a
-%                       configured minimum analysis frequency, used to
-%                       avoid false positives from residual DC leakage)
+%   Detection happens in three steps, and THE ORDER IS DELIBERATE:
 %
-% Outputs:
-%   tonalMask - logical column vector, true where a bin belongs to a
-%               detected tonal region
-%   regions   - [numRegions x 2] matrix of [startBin, endBin] indices,
-%               one row per detected tonal region
+%   1) RAW THRESHOLD -- flag every bin where
+%           Pxx(bin) > noiseFloor(bin) * thresholdRatio
+%      thresholdRatio is a LINEAR power ratio (e.g. a 6 dB threshold is
+%      thresholdRatio = 10^(6/10) ~= 3.98).
 %
-% ---------------------------------------------------------------------
-% WHY GROUP BINS INTO REGIONS AT ALL
-% ---------------------------------------------------------------------
-% A single true sinusoid does not appear as one isolated bin: the Hann
-% window's main lobe spreads it over several neighboring bins. If every
-% bin above threshold were reported as its own "tone", one real
-% sinusoid would be miscounted as several. Grouping adjacent (and
-% closely-spaced) above-threshold bins into a single region, then taking
-% one representative frequency/power per region, avoids this.
-% ---------------------------------------------------------------------
+%   2) MINIMUM-WIDTH VALIDATION, applied to the RAW (not-yet-expanded)
+%      flagged bins: group them into contiguous runs and keep only runs
+%      that are at least minBandWidthBins bins long. This is the main
+%      defense against false detections, not just a cosmetic "minimum
+%      tone width": a single periodogram bin is a noisy estimate (see
+%      estimateLocalNoiseFloor), so with thousands of bins in a
+%      spectrum, isolated bins will exceed even a fairly strict
+%      threshold by chance reasonably often. A genuine tone, broadened
+%      by Hann-window leakage, reliably produces several *consecutive*
+%      bins above threshold; an isolated noise spike usually does not.
+%      This validation MUST happen before expansion -- if bins were
+%      expanded first, a single noise spike would trivially satisfy any
+%      minimum-width requirement once dilated, defeating the purpose.
+%      (This was confirmed empirically during development: applying the
+%      width filter after expansion let dozens of spurious sub-bin noise
+%      fluctuations through as "detected tones".)
+%
+%   3) EXPANSION -- each validated region is widened by expandBins bins
+%      on each side, to capture the leakage skirt around the tone (so
+%      the region used for power integration includes the tone's spread
+%      energy, not just its single tallest bin). Expansion can cause
+%      adjacent validated regions to merge; when that happens two very
+%      closely spaced tones are reported as a single combined region
+%      (see the "closely spaced tones" limitation in estimateTonalSNR.m).
+%
+%   Inputs:
+%       Pxx               - one-sided PSD vector (column)
+%       noiseFloor        - local noise-floor PSD, same size as Pxx
+%       thresholdRatio    - linear power ratio threshold (> 1)
+%       minBandWidthBins  - minimum number of consecutive raw-threshold
+%                           bins required to accept a detection
+%                           (positive integer)
+%       expandBins        - number of bins to expand each validated
+%                           region by, on each side (nonnegative integer)
+%   Outputs:
+%       detectedMask - logical vector, same size as Pxx; true for every
+%                      bin belonging to a final (validated + expanded)
+%                      tonal region
+%       regions      - M-by-2 matrix of [startIdx, endIdx], one row per
+%                      final tonal region (already merged where
+%                      expansion caused two regions to overlap)
 
-thresholdRatio = 10^(thresholdDb / 10);
+    nBins = numel(Pxx);
 
-psd = psd(:);
-noiseFloor = noiseFloor(:);
-excludedBins = logical(excludedBins(:));
+    rawMask = Pxx > (noiseFloor * thresholdRatio);
 
-candidate = (psd > noiseFloor * thresholdRatio) & ~excludedBins;
+    rawRegions = groupContiguousBins(rawMask);
+    if ~isempty(rawRegions)
+        widths = rawRegions(:,2) - rawRegions(:,1) + 1;
+        rawRegions = rawRegions(widths >= minBandWidthBins, :);
+    end
 
-M = numel(psd);
-tonalMask = false(M, 1);
-regions = zeros(0, 2);
+    validatedMask = false(nBins, 1);
+    for r = 1:size(rawRegions, 1)
+        validatedMask(rawRegions(r,1):rawRegions(r,2)) = true;
+    end
 
-if ~any(candidate)
-    return;
-end
-
-% --- find contiguous runs of candidate bins -------------------------
-paddedCandidate = double([false; candidate; false]);
-edges = diff(paddedCandidate);
-runStarts = find(edges == 1);
-runEnds   = find(edges == -1) - 1;
-
-% --- merge runs separated by a small gap (leakage skirt of one tone) -
-mergedStarts = runStarts(1);
-mergedEnds   = runEnds(1);
-for k = 2:numel(runStarts)
-    gap = runStarts(k) - mergedEnds(end) - 1;
-    if gap <= mergeGapBins
-        mergedEnds(end) = runEnds(k);
+    if expandBins > 0 && any(validatedMask)
+        kernel = ones(2*expandBins + 1, 1);
+        detectedMask = conv(double(validatedMask), kernel, 'same') > 0;
     else
-        mergedStarts(end+1) = runStarts(k); %#ok<AGROW>
-        mergedEnds(end+1)   = runEnds(k);   %#ok<AGROW>
-    end
-end
-
-% --- expand each region and enforce the minimum bandwidth ------------
-numRegions = numel(mergedStarts);
-rawRegions = zeros(numRegions, 2);
-for r = 1:numRegions
-    s = mergedStarts(r) - expansionBins;
-    e = mergedEnds(r)   + expansionBins;
-
-    width = e - s + 1;
-    if width < minBandwidthBins
-        deficit = minBandwidthBins - width;
-        s = s - ceil(deficit / 2);
-        e = e + floor(deficit / 2);
+        detectedMask = validatedMask;
     end
 
-    rawRegions(r, :) = [max(1, s), min(M, e)];
-end
-
-% --- expansion/min-width can make neighboring regions overlap; re-merge
-regions = mergeOverlappingRegions(rawRegions);
-
-for r = 1:size(regions, 1)
-    tonalMask(regions(r, 1):regions(r, 2)) = true;
-end
+    regions = groupContiguousBins(detectedMask);
 end

@@ -146,8 +146,8 @@ for k = 1:numel(sineList)
             'Sine #%d: freq = %.9g Hz must satisfy 0 < freq < Fs/2 = %.9g Hz.', ...
             k, sineList(k).freq, nyquist);
     end
-    if sineList(k).tau <= 0
-        error('parseSignalConfig:invalidTau', 'Sine #%d: tau must be positive.', k);
+    if isnan(sineList(k).tau) || (isfinite(sineList(k).tau) && sineList(k).tau < 0)
+        error('parseSignalConfig:invalidTau', 'Sine #%d: tau must be nonnegative or Inf for no decay.', k);
     end
 end
 for k = 1:numel(shiftList)

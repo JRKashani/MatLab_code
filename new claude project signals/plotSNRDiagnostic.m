@@ -94,7 +94,7 @@ if options.SaveFig || options.SavePng
     end
 
     baseName = sprintf('SNR_%s_samples_%d_%d', ...
-        sanitizeFilename(result.signalName), result.sampleRange(1), result.sampleRange(2));
+        sanitizeFileName(result.signalName), result.sampleRange(1), result.sampleRange(2));
 
     if options.SaveFig
         savefig(figHandle, fullfile(options.OutputFolder, [baseName '.fig']));

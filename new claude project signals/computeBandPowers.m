@@ -1,36 +1,79 @@
-function [signalPower, noisePower] = computeBandPowers(psd, noiseFloorPsd, region, df)
-%COMPUTEBANDPOWERS Measured excess (tonal) power and noise power within
-% one detected frequency band.
+function bandInfo = computeBandPowers(f, Pxx, noiseFloor, regions, df)
+%COMPUTEBANDPOWERS Per-region tonal/noise power and individual (local/band) SNR.
 %
-% [signalPower, noisePower] = computeBandPowers(psd, noiseFloorPsd, region, df)
+%   bandInfo = COMPUTEBANDPOWERS(f, Pxx, noiseFloor, regions, df)
 %
-% Inputs:
-%   psd           - one-sided PSD, column vector
-%   noiseFloorPsd - estimated noise-floor PSD, same length as psd
-%   region        - [startBin, endBin] indices of the band
-%   df            - frequency resolution (Hz per bin)
+%   For each detected tonal region (row of `regions`: an inclusive
+%   [startIdx, endIdx] bin range), computes
 %
-% Outputs:
-%   signalPower - estimated tonal ("excess") power in the band, in the
-%                 same physical units as mean-square acceleration
-%   noisePower  - estimated broadband noise power in the same band
+%       P_tone  = sum( max(Pxx(band) - noiseFloor(band), 0) ) * df
+%       P_noise = sum( noiseFloor(band) ) * df
+%       SNR_dB  = 10*log10(P_tone / P_noise)
 %
-% Both are computed by summing the appropriate PSD over the band and
-% multiplying by df (a Riemann-sum approximation of integrating the PSD
-% over frequency), consistent with the normalization used throughout:
+%   P_tone is the EXCESS power in the band above the estimated noise
+%   floor curve, clipped at zero per bin (so a bin that happens to sit
+%   fractionally below its own local noise-floor estimate cannot
+%   contribute negative tonal power). P_noise is the noise power the
+%   estimator believes is present in that same band -- taken from the
+%   smooth estimated noise-floor curve underneath the tone, not from the
+%   raw (tone-contaminated) PSD in the band.
 %
-%   P_tone  = sum_over_band( max(PSD(f) - PSD_noise(f), 0) ) * df
-%   P_noise = sum_over_band( PSD_noise(f) )                  * df
+%   IMPORTANT: this per-tone SNR is explicitly a LOCAL/BAND SNR for that
+%   one tone. Power everywhere else in the spectrum has no influence on
+%   it. This is a different quantity from the overall SNR returned by
+%   estimateTonalSNR (which compares total tonal power to total noise
+%   power across the whole analyzed range) -- the two must not be
+%   confused, and are kept in separate result fields for that reason.
 %
-% The max(...,0) guards against small negative values that can occur
-% simply from the statistical scatter of a single-block periodogram
-% dipping momentarily below its own (smoothed) local noise-floor
-% estimate; such small negative excess is treated as "no extra tonal
-% power there", not as evidence against the presence of a tone.
+%   The representative frequency for a region is the frequency of its
+%   single highest-PSD bin. This is a simple, transparent choice; a
+%   parabolic (quadratic) interpolation across the peak and its two
+%   neighbors could sharpen the frequency estimate slightly for
+%   well-isolated tones, but is not implemented here to keep the
+%   estimator simple (see estimateTonalSNR.m "Scope").
+%
+%   Inputs:
+%       f          - one-sided frequency vector (Hz), column
+%       Pxx        - one-sided measured PSD, same size as f
+%       noiseFloor - one-sided estimated noise-floor PSD, same size as f
+%       regions    - M-by-2 matrix of [startIdx, endIdx] bin ranges
+%       df         - frequency resolution in Hz (f(2) - f(1))
+%   Output:
+%       bandInfo - 1-by-M struct array with fields:
+%           .peakFrequencyHz
+%           .bandHz          - [startFreqHz, endFreqHz]
+%           .signalPower
+%           .noisePower
+%           .snrDB
 
-idx = region(1):region(2);
+    M = size(regions, 1);
+    bandInfo = struct('peakFrequencyHz', {}, 'bandHz', {}, ...
+                       'signalPower', {}, 'noisePower', {}, 'snrDB', {});
 
-excess = max(psd(idx) - noiseFloorPsd(idx), 0);
-signalPower = sum(excess) * df;
-noisePower  = sum(noiseFloorPsd(idx)) * df;
+    for r = 1:M
+        a = regions(r,1);
+        b = regions(r,2);
+        band = a:b;
+
+        [~, relIdx] = max(Pxx(band));
+        peakIdx = a + relIdx - 1;
+
+        Ptone = sum(max(Pxx(band) - noiseFloor(band), 0)) * df;
+        Pnoise = sum(noiseFloor(band)) * df;
+
+        if Pnoise > 0
+            snrDB = 10 * log10(Ptone / Pnoise);
+        else
+            % Degenerate: the estimator believes there is zero noise in
+            % this band. Report +Inf rather than manufacturing a finite
+            % number; see estimateTonalSNR.m failure-case handling.
+            snrDB = Inf;
+        end
+
+        bandInfo(r).peakFrequencyHz = f(peakIdx);
+        bandInfo(r).bandHz = [f(a), f(b)];
+        bandInfo(r).signalPower = Ptone;
+        bandInfo(r).noisePower = Pnoise;
+        bandInfo(r).snrDB = snrDB;
+    end
 end

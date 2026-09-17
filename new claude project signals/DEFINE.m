@@ -41,7 +41,7 @@ D.MAT_ROOT_VARNAME = 'syntheticAccelData';
 % Number of bins used for all acceleration histograms (see
 % plotAccelerationSignals.m). Kept identical across signals so bar
 % widths line up and the three histograms are visually comparable.
-D.HISTOGRAM_BIN_COUNT = 60;
+D.HISTOGRAM_BIN_COUNT = 100;
 
 % Upper limit on how many points are drawn in the time-series plot.
 % Downsampling here only ever affects the DISPLAYED line, never the
@@ -57,5 +57,21 @@ D.SAVE_PNG_FILES = true;
 % Base filenames (without extension) for the two saved figures.
 D.TIME_SERIES_BASE_FILENAME = 'signal_time_series';
 D.HISTOGRAM_BASE_FILENAME   = 'signal_histograms';
+
+% =========================
+% WINDOWED MOMENTS SETTINGS
+% =========================
+
+WM_WINDOW_SIZES_SEC = [0.1 0.25 0.5 1 2];
+
+% Leave empty or 0 for automatic step-size selection.
+% Otherwise specify the desired step between evaluated centers in seconds.
+WM_STEP_SEC = [];
+
+% Runtime target for one complete signal analysis.
+WM_MAX_RUNTIME_SEC = 30;
+
+% Aim somewhat below the hard target because runtime prediction is imperfect.
+WM_RUNTIME_SAFETY_FACTOR = 0.80;
 
 end

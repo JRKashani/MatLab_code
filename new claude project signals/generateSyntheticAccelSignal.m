@@ -65,8 +65,14 @@ for k = 1:numel(cfg.SineComponents)
     idxEnd   = min(idxStart + segmentLength - 1, N);
 
     localTime = (0:(idxEnd - idxStart)) / Fs; % time measured from this component's own start
+    % tau = 0 or Inf means no decay; any positive finite value creates an
+    % exponentially decaying envelope.
+    decayFactor = ones(size(localTime));
+    if isfinite(s.tau) && s.tau > 0
+        decayFactor = exp(-localTime / s.tau);
+    end
     pureSineSignal(idxStart:idxEnd) = pureSineSignal(idxStart:idxEnd) + ...
-        s.amplitude * exp(-localTime / s.tau) .* sin(2*pi*s.freq*localTime + s.phase);
+        s.amplitude * decayFactor .* sin(2*pi*s.freq*localTime + s.phase);
 end
 
 % ---- shifts ------------------------------------------------------------

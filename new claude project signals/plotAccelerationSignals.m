@@ -1,12 +1,12 @@
-function [timeSeriesFigure, histogramFigure] = plotAccelerationSignals(signalData, outputFolder)
+function [timeSeriesFigure, histogramFigure] = plotAccelerationSignals(signalData, outputFolder, options)
 %PLOTACCELERATIONSIGNALS Plot time-series and histogram diagnostics.
 %
 %   [TIMESERIESFIGURE, HISTOGRAMFIGURE] = PLOTACCELERATIONSIGNALS(SIGNALDATA)
 %   [TIMESERIESFIGURE, HISTOGRAMFIGURE] = PLOTACCELERATIONSIGNALS(SIGNALDATA, OUTPUTFOLDER)
+%   [TIMESERIESFIGURE, HISTOGRAMFIGURE] = PLOTACCELERATIONSIGNALS(SIGNALDATA, OUTPUTFOLDER, OPTIONS)
 %   creates two figures from a generated acceleration-signal data set:
 %   a 3-tile acceleration-vs-time overview, and a 3-tile histogram
-%   comparison, and optionally saves each as .fig and/or .png
-%   according to DEFINE().SAVE_FIG_FILES / DEFINE().SAVE_PNG_FILES.
+%   comparison, and optionally saves each as .fig and/or .png.
 %
 %   Inputs:
 %       signalData   - struct with the fields produced by
@@ -41,8 +41,25 @@ function [timeSeriesFigure, histogramFigure] = plotAccelerationSignals(signalDat
 %   This function assumes MATLAB R2020a or later (uses tiledlayout and
 %   exportgraphics, both core graphics features, no toolbox required).
 
+if nargin < 3 || isempty(options)
+    options = struct();
+end
+
+options = defaultPlotOptions(options);
+
 if nargin < 2 || isempty(outputFolder)
-    outputFolder = fullfile(pwd, 'figures');
+    outputFolder = options.outputFolder;
+else
+    % Guard against passing a file path (for example a saved .mat file) as
+    % the output folder. In that case, use the parent directory instead.
+    [outputFolder, ~, ext] = fileparts(outputFolder);
+    if isempty(outputFolder)
+        outputFolder = pwd;
+    end
+    if ~isempty(ext)
+        % Keep only the directory and ignore any file-like input.
+        outputFolder = outputFolder;
+    end
 end
 
 requiredFields = {'combinedSignal', 'pureSineSignal', 'pureNoiseSignal', 'Fs', 'SampleCount'};
@@ -53,11 +70,10 @@ for k = 1:numel(requiredFields)
     end
 end
 
-D = DEFINE();
-maxPlotPoints     = D.MAX_PLOT_POINTS;
-histogramBinCount = D.HISTOGRAM_BIN_COUNT;
-saveFigFiles      = D.SAVE_FIG_FILES;
-savePngFiles      = D.SAVE_PNG_FILES;
+maxPlotPoints     = options.maxPlotPoints;
+histogramBinCount = options.histogramBinCount;
+saveFigFiles      = options.saveFig;
+savePngFiles      = options.savePng;
 
 Fs = signalData.Fs;
 N  = signalData.SampleCount;
@@ -96,7 +112,7 @@ for k = 1:numel(signalsToPlot)
 end
 xlabel(tl1, 'Time [s]');
 
-saveFigureInFormats(timeSeriesFigure, outputFolder, D.TIME_SERIES_BASE_FILENAME, saveFigFiles, savePngFiles);
+saveFigureInFormats(timeSeriesFigure, outputFolder, options.timeSeriesFileBase, saveFigFiles, savePngFiles);
 
 % ---- Figure 2: histograms (full-resolution data, shared bin edges) -------
 % Same bin COUNT with independently auto-chosen bin EDGES per signal is
@@ -133,8 +149,31 @@ for k = 1:numel(signalsToPlot)
 end
 xlabel(tl2, 'Acceleration [m/s^2]');
 
-saveFigureInFormats(histogramFigure, outputFolder, D.HISTOGRAM_BASE_FILENAME, saveFigFiles, savePngFiles);
+saveFigureInFormats(histogramFigure, outputFolder, options.histogramFileBase, saveFigFiles, savePngFiles);
 
+end
+
+function options = defaultPlotOptions(options)
+    if nargin < 1 || isempty(options)
+        options = struct();
+    end
+
+    defaults = struct();
+    defaults.outputFolder = fullfile(pwd, 'figures');
+    defaults.maxPlotPoints = 20000;
+    defaults.histogramBinCount = 100;
+    defaults.saveFig = true;
+    defaults.savePng = true;
+    defaults.timeSeriesFileBase = 'signal_time_series';
+    defaults.histogramFileBase = 'signal_histograms';
+
+    optionNames = fieldnames(defaults);
+    for i = 1:numel(optionNames)
+        name = optionNames{i};
+        if ~isfield(options, name) || isempty(options.(name))
+            options.(name) = defaults.(name);
+        end
+    end
 end
 
 % ----------------------------------------------------------------------------

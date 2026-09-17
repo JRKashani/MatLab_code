@@ -2,22 +2,22 @@
 # Lines starting with # are comments; blank lines are ignored.
 
 # --- global settings ---
-Fs = 5000
-Duration = 10
+Fs = 10000
+Duration = 60
 Seed = 42
 
 # --- noise (target RMS in acceleration units; 0 disables) ---
-NoiseWhiteRMS = 0.05
-NoisePinkRMS  = 0.03
-NoiseBrownRMS = 0.02
+NoiseWhiteRMS = 0.5
+NoisePinkRMS  = 0
+NoiseBrownRMS = 0
 
 # --- sine components ---
 # Sine = freq[Hz], amplitude, startTime[s], duration[s], phase[rad], tau[s]
-Sine = 50,  2.0, 0.5, 3.0, 0.0, 0.8
-Sine = 120, 1.0, 2.0, 1.5, 1.2, 0.3
-Sine = 300, 0.5, 6.0, 4.0, -0.5, 2.0
+Sine = 57,  2.0, 0, 60, 0.0, inf
+Sine = 121, 1.0, 0, 60, 1.2, inf
+Sine = 303, 0.5, 0, 60, -0.5, inf
 
 # --- shift components ---
 # Shift = startTime[s], duration[s], offset
-Shift = 1.0, 2.0, 0.5
-Shift = 5.0, 1.0, -0.3
+Shift = 1.0, 2.0, 0
+Shift = 5.0, 1.0, 0
