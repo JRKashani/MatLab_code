@@ -1,2 +1,64 @@
 Project run started at 17-Sep-2026 03:17:18
 SUCCESS: Generate signal
+SUCCESS: Windowed moments
+SUCCESS: FFT
+FAILURE: Welch PSD
+Error using plot
+Specify the coordinates as vectors or matrices of the same size, or as a vector and a matrix that share the same length in at least one
+dimension.
+
+Error in main>plotWelchPSD (line 201)
+    plot(f, 10 * log10(psd + eps), 'LineWidth', 1.5);
+
+Error in main>@()plotWelchPSD(signal,cfg.Fs,'combinedSignal',fullfile(resultDir,'welch_psd.png')) (line 58)
+        plotWelchPSD(signal, cfg.Fs, 'combinedSignal', fullfile(resultDir, 'welch_psd.png')));
+
+Error in main>runMission (line 83)
+        missionFn();
+
+Error in main (line 57)
+    missionStatus.welch = runMission(fid, 'Welch PSD', @() ...
+FAILURE: Periodogram
+Requested 50000x50000 (18.6GB) array exceeds maximum array size preference (15.8GB). This might cause MATLAB to become unresponsive.
+
+Error in main>computePeriodogramPSD (line 258)
+    xw = x .* window;
+
+Error in main>plotPeriodogram (line 242)
+    [psd, f] = computePeriodogramPSD(x, Fs, window, nfft);
+
+Error in main>@()plotPeriodogram(signal,cfg.Fs,'combinedSignal',fullfile(resultDir,'periodogram.png')) (line 61)
+        plotPeriodogram(signal, cfg.Fs, 'combinedSignal', fullfile(resultDir, 'periodogram.png')));
+
+Error in main>runMission (line 83)
+        missionFn();
+
+Error in main (line 60)
+    missionStatus.periodogram = runMission(fid, 'Periodogram', @() ...
+FAILURE: Burg PSD
+Error using *
+Incorrect dimensions for matrix multiplication. Check that the number of columns in the first matrix matches the number of rows in the
+second matrix. To operate on each element of the matrix individually, use TIMES (.*) for elementwise multiplication.
+
+Error in main>computeBurgPSD (line 304)
+    phaseMatrix = exp(-1i * (1:order).' * omega);
+
+Error in main>plotBurgPSD (line 271)
+    [psd, f] = computeBurgPSD(x, Fs, order, nfft);
+
+Error in main>@()plotBurgPSD(signal,cfg.Fs,'combinedSignal',fullfile(resultDir,'burg_psd.png')) (line 64)
+        plotBurgPSD(signal, cfg.Fs, 'combinedSignal', fullfile(resultDir, 'burg_psd.png')));
+
+Error in main>runMission (line 83)
+        missionFn();
+
+Error in main (line 63)
+    missionStatus.burg = runMission(fid, 'Burg PSD', @() ...
+
+Final mission status:
+  generation      : 1
+  windowedMoments : 1
+  fft             : 1
+  welch           : 0
+  periodogram     : 0
+  burg            : 0
