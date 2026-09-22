@@ -26,6 +26,7 @@ function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputF
     ylabel('Power spectral density [dB/Hz]');
     grid on;
     xlim([0, Fs/2]);
+    peaks = markPSDPeaks(gca, f, psd);
 
     drawnow;
     if ~exist(outputFolder, 'dir')
@@ -36,6 +37,7 @@ function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputF
     result = struct();
     result.f = f;
     result.psd = psd;
+    result.peaks = peaks;
     result.sampleRange = sampleRange;
     result.sampleCount = numel(x);
     result.Fs = Fs;

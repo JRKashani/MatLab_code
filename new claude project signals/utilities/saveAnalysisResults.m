@@ -122,6 +122,18 @@ function summaryText = buildAnalysisSummary(analysisSubset, metadata)
         if isfield(snrRes, 'overallSNRdB')
             lines{end+1} = sprintf('Overall tonal SNR: %.4f dB', snrRes.overallSNRdB);
         end
+        if isfield(snrRes, 'noiseRMS')
+            lines{end+1} = sprintf('Estimated white-noise RMS: %.6g (band 0-%.6g Hz)', snrRes.noiseRMS, snrRes.Fs/2);
+            lines{end+1} = sprintf('SNR analysis status: %s', snrRes.status);
+            for j = 1:numel(snrRes.tracks)
+                tone = snrRes.tracks(j);
+                lines{end+1} = sprintf('Tone %d: %.4g-%.4g Hz, RMS %.5g, full-band SNR %.4g dB', ...
+                    j, tone.frequencyRangeHz(1), tone.frequencyRangeHz(2), sqrt(tone.meanPower), tone.overallSNRdB);
+            end
+            for j = 1:numel(snrRes.notes)
+                lines{end+1} = ['SNR note: ' snrRes.notes{j}];
+            end
+        end
         if isfield(snrRes, 'peakSNRdB') && ~isempty(snrRes.peakSNRdB)
             lines{end+1} = sprintf('Per-tone SNR dB: %s', mat2str(snrRes.peakSNRdB(:).')); 
         end
@@ -148,6 +160,8 @@ function csvStruct = collectScalarSummary(analysisSubset, metadata)
     csvStruct.DC_mean = '';
     csvStruct.FFT_dominant_peaks = '';
     csvStruct.Overall_SNR_dB = '';
+    csvStruct.White_noise_RMS = '';
+    csvStruct.SNR_status = '';
     csvStruct.Periodogram_windows = '';
     csvStruct.Welch_windows = '';
     csvStruct.Burg_orders = '';
@@ -179,6 +193,10 @@ function csvStruct = collectScalarSummary(analysisSubset, metadata)
         snrRes = analysisSubset.snr;
         if isfield(snrRes, 'overallSNRdB')
             csvStruct.Overall_SNR_dB = sprintf('%.6g', snrRes.overallSNRdB);
+        end
+        if isfield(snrRes, 'noiseRMS')
+            csvStruct.White_noise_RMS = sprintf('%.6g', snrRes.noiseRMS);
+            csvStruct.SNR_status = snrRes.status;
         end
     end
 

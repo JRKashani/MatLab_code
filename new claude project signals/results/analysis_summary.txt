@@ -2,8 +2,15 @@ Synthetic analysis summary
 =========================
 Sample range: [1 600000]
 Fs: 10000 Hz
-DC mean: -0.000174792
-Moment windows: [1000 2500 5000 10000 20000]
-FFT dominant peaks: 57.000Hz@2; 121.000Hz@0.998; 303.000Hz@0.5
-FFT DC mean: -0.000174792
+DC mean: 0.00097836
+Moment windows: [1001 2501 5001 10001 20001]
+FFT dominant peaks: 16.000Hz@2.9; 217.000Hz@1.2; 501.000Hz@0.699
+FFT DC mean: 0.00097836
+Overall tonal SNR: 8.0566 dB
+Estimated white-noise RMS: 0.899899 (band 0-5000 Hz)
+SNR analysis status: ok
+Tone 1: 15.98-16.04 Hz, RMS 2.0525, full-band SNR 7.162 dB
+Tone 2: 216.9-217.1 Hz, RMS 0.84845, full-band SNR -0.5114 dB
+Tone 3: 500.9-501.1 Hz, RMS 0.49408, full-band SNR -5.208 dB
+Per-tone SNR dB: [7.16166939294657 -0.511385825974792 -5.20797863993268]
 Validation: PASS

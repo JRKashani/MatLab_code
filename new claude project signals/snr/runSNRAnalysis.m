@@ -1,7 +1,10 @@
-function result = runSNRAnalysis(signal, sampleRange, Fs, signalName, outputFolder)
-%RUNSNRANALYSIS Placeholder for tonal SNR analysis orchestration.
-%   TODO: integrate estimateTonalSNR or evaluateGroundTruth into a dedicated
-%   SNR folder and keep this wrapper minimal.
+function result = runSNRAnalysis(signal, sampleRange, Fs, signalName, outputFolder, options)
+%RUNSNRANALYSIS Estimate drifting/decaying tones against full-band white noise.
+%   Uses only measured samples and Fs, never synthetic component settings.
+%   Optional options fields are documented in estimateTonalSNR. makePlots,
+%   savePng and saveFig control output. Default settings live in DEFINE.m.
+%   Amplitudes are equivalent local sine peak amplitudes sqrt(2*tonePower),
+%   not FFT-bin heights. Each tone's SNR uses the same full-band noise power.
 
     if nargin < 5 || isempty(outputFolder)
         outputFolder = fullfile(pwd, 'results');
@@ -9,12 +12,13 @@ function result = runSNRAnalysis(signal, sampleRange, Fs, signalName, outputFold
     if nargin < 4 || isempty(signalName)
         signalName = 'signal';
     end
-
-    result = struct();
+    if nargin < 6 || isempty(options), options = struct(); end
+    result = estimateTonalSNR(signal, sampleRange, Fs, options);
     result.signalName = signalName;
-    result.sampleRange = sampleRange;
-    result.Fs = Fs;
     result.outputFolder = outputFolder;
-    result.status = 'not_implemented';
-    result.note = 'TODO: route to estimateTonalSNR / validation functions.';
+    result.figureHandle = [];
+    result.files = {};
+    if ~isfield(options, 'makePlots') || options.makePlots
+        [result.figureHandle, result.files] = plotTonalSNR(result, outputFolder, options);
+    end
 end

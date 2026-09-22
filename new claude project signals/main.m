@@ -34,7 +34,7 @@ function main()
     RUN_PERIODOGRAM = true;
     RUN_WELCH = true;
     RUN_BURG = true;
-    RUN_SNR = false;
+    RUN_SNR = true;
     RUN_VALIDATION = true;
 
     flags = struct();

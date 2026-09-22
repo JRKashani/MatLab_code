@@ -45,12 +45,14 @@ function fig = plotHistogram(signalData, outputFolder, options)
     signalSet = {combined, sine, noise};
     titles = {'Combined signal', 'Pure sine signal', 'Pure noise signal'};
     for k = 1:3
-        nexttile;
-        histogram(signalSet{k}, edges, 'Normalization', 'count');
+        ax = nexttile;
+        histogram(ax, signalSet{k}, edges, 'Normalization', 'count');
         title(titles{k});
         xlabel('Amplitude');
         ylabel('Count');
         grid on;
+        % Keep the hover toolbar out of exported PNGs and saved figures.
+        ax.Toolbar.Visible = 'off';
     end
 
     if ~exist(outputFolder, 'dir')
@@ -61,6 +63,7 @@ function fig = plotHistogram(signalData, outputFolder, options)
         savefig(fig, fullfile(outputFolder, [options.fileBase '.fig']));
     end
     if options.savePng
+        drawnow;
         exportgraphics(fig, fullfile(outputFolder, [options.fileBase '.png']), 'Resolution', 300);
     end
 end

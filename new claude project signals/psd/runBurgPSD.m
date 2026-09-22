@@ -24,6 +24,9 @@ function result = runBurgPSD(signal, sampleRange, Fs, signalName, outputFolder)
     ylabel('Power spectral density [dB/Hz]');
     grid on;
     xlim([0, Fs/2]);
+    peakSettings = DEFINE();
+    peakSettings.PSD_MIN_PEAK_PROMINENCE_DB = peakSettings.BURG_MIN_PEAK_PROMINENCE_DB;
+    peaks = markPSDPeaks(gca, f, psd, peakSettings);
 
     drawnow;
     if ~exist(outputFolder, 'dir')
@@ -34,6 +37,7 @@ function result = runBurgPSD(signal, sampleRange, Fs, signalName, outputFolder)
     result = struct();
     result.f = f;
     result.psd = psd;
+    result.peaks = peaks;
     result.sampleRange = sampleRange;
     result.sampleCount = numel(x);
     result.Fs = Fs;
