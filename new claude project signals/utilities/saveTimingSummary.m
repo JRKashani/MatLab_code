@@ -1,10 +1,16 @@
-function result = saveTimingSummary(missionSeconds, outputFolder, analysisSaved)
+function result = saveTimingSummary(missionSeconds, outputFolder, analysisSaved, artifactFolder)
 %SAVETIMINGSUMMARY Persist wall-clock seconds after the numerical saves finish.
 %   Timings include plotting/export within each mission and failed missions.
 %   Total stops before this reporting step; setup overhead is included in total.
 %   Append to analysis summaries only when this run wrote them successfully.
 
     names = fieldnames(missionSeconds);
+    if nargin < 4 || isempty(artifactFolder)
+        artifactFolder = outputFolder;
+    end
+    if ~exist(artifactFolder, 'dir')
+        mkdir(artifactFolder);
+    end
     txtPath = fullfile(outputFolder, 'timing_summary.txt');
     fid = fopen(txtPath, 'w');
     if fid == -1
@@ -18,9 +24,9 @@ function result = saveTimingSummary(missionSeconds, outputFolder, analysisSaved)
     fprintf(fid, 'Total measured before timing-report persistence.\n');
     clear cleanup;
 
-    save(fullfile(outputFolder, 'final_results.mat'), 'missionSeconds', '-append');
+    save(fullfile(artifactFolder, 'final_results.mat'), 'missionSeconds', '-append');
     if analysisSaved
-        save(fullfile(outputFolder, 'analysis_results.mat'), 'missionSeconds', '-append');
+        save(fullfile(artifactFolder, 'analysis_results.mat'), 'missionSeconds', '-append');
         fid = fopen(fullfile(outputFolder, 'analysis_summary.txt'), 'a');
         if fid == -1
             error('saveTimingSummary:cannotAppend', 'Could not append timing to text summary.');
@@ -33,7 +39,7 @@ function result = saveTimingSummary(missionSeconds, outputFolder, analysisSaved)
         fprintf(fid, 'Total measured before timing-report persistence.\n');
         clear cleanup;
 
-        fid = fopen(fullfile(outputFolder, 'analysis_summary.csv'), 'a');
+        fid = fopen(fullfile(artifactFolder, 'analysis_summary.csv'), 'a');
         if fid == -1
             error('saveTimingSummary:cannotAppend', 'Could not append timing to CSV summary.');
         end

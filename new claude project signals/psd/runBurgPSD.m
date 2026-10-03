@@ -4,7 +4,7 @@ function result = runBurgPSD(signal, sampleRange, Fs, signalName, outputFolder)
 %   sample count so even a short selected segment has a valid model.
 
     if nargin < 5 || isempty(outputFolder)
-        outputFolder = fullfile(pwd, 'results');
+        outputFolder = fullfile(pwd, 'figures');
     end
     if nargin < 4 || isempty(signalName)
         signalName = 'signal';

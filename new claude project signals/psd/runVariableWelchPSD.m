@@ -1,7 +1,7 @@
 function result = runVariableWelchPSD(signal, sampleRange, Fs, fftResult, signalName, outputFolder, options)
 %RUNVARIABLEWELCHPSD One linear PSD curve with marked resolution boundaries.
     if nargin < 7, options = struct(); end
-    if nargin < 6 || isempty(outputFolder), outputFolder = fullfile(pwd, 'results'); end
+    if nargin < 6 || isempty(outputFolder), outputFolder = fullfile(pwd, 'figures'); end
     if nargin < 5 || isempty(signalName), signalName = 'signal'; end
     if ~isstruct(fftResult) || ~isscalar(fftResult) || ~isfield(fftResult, 'allPeakFrequenciesHz')
         error('runVariableWelchPSD:missingFFT', ...

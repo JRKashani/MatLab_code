@@ -15,7 +15,7 @@ function fig = plotSignalVsTime(signalData, outputFolder, options)
 %   same symmetric y-limits so their amplitudes can be compared directly.
 
     if nargin < 2 || isempty(outputFolder)
-        outputFolder = fullfile(pwd, 'results');
+        outputFolder = fullfile(pwd, 'figures');
     end
     if nargin < 3 || isempty(options)
         options = struct();

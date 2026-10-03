@@ -32,6 +32,9 @@ function main()
     if ~exist(paths.resultsDir, 'dir')
         mkdir(paths.resultsDir);
     end
+    if ~exist(paths.figuresDir, 'dir')
+        mkdir(paths.figuresDir);
+    end
 
     % 2) Mission flags.
     RUN_GENERATION     = true;
@@ -104,19 +107,19 @@ function main()
     % 5) Run enabled missions independently.
     if RUN_TIME_PLOT
         [missionStatus.timePlot, resultTmp, missionSeconds.timePlot] = runMission(fid, 'Signal vs time plot', @() ...
-            plotSignalVsTime(data, paths.resultsDir));
+            plotSignalVsTime(data, paths.figuresDir));
         results.timePlot = resultTmp;
     end
 
     if RUN_HISTOGRAMS
         [missionStatus.histograms, resultTmp, missionSeconds.histograms] = runMission(fid, 'Histogram plot', @() ...
-            plotHistogram(data, paths.resultsDir));
+            plotHistogram(data, paths.figuresDir));
         results.histograms = resultTmp;
     end
 
     if RUN_MOMENTS
         momentsOptions = struct();
-        momentsOptions.outputFolder = paths.resultsDir;
+        momentsOptions.outputFolder = paths.figuresDir;
         momentsOptions.windowLengths = round(DEFINE().WM_WINDOW_SIZES_SEC * cfg.Fs);
         momentsOptions.windowLengths = momentsOptions.windowLengths(momentsOptions.windowLengths >= 8);
         momentsOptions.savePng = DEFINE().SAVE_PNG_FILES;
@@ -146,19 +149,19 @@ function main()
 
     if RUN_FFT
         [missionStatus.fft, resultTmp, missionSeconds.fft] = runMission(fid, 'FFT', @() ...
-            analyzeAccelFFT(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir, 'm/s^2', true, true));
+            analyzeAccelFFT(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.figuresDir, 'm/s^2', true, true));
         results.fft = resultTmp;
     end
 
     if RUN_PERIODOGRAM
         [missionStatus.periodogram, resultTmp, missionSeconds.periodogram] = runMission(fid, 'Periodogram PSD', @() ...
-            runPeriodogramPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
+            runPeriodogramPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.figuresDir));
         results.periodogram = resultTmp;
     end
 
     if RUN_WELCH
         [missionStatus.welch, resultTmp, missionSeconds.welch] = runMission(fid, 'Welch PSD', @() ...
-            runWelchPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
+            runWelchPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.figuresDir));
         results.welch = resultTmp;
     end
 
@@ -167,18 +170,18 @@ function main()
         if isfield(results, 'fft'), fftForWelch = results.fft; end
         [missionStatus.variableWelch, results.variableWelch, missionSeconds.variableWelch] = ...
             runMission(fid, 'Variable-resolution Welch PSD', @() ...
-            runVariableWelchPSD(signal, sampleRange, cfg.Fs, fftForWelch, 'combinedSignal', paths.resultsDir));
+            runVariableWelchPSD(signal, sampleRange, cfg.Fs, fftForWelch, 'combinedSignal', paths.figuresDir));
     end
 
     if RUN_BURG
         [missionStatus.burg, resultTmp, missionSeconds.burg] = runMission(fid, 'Burg PSD', @() ...
-            runBurgPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
+            runBurgPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.figuresDir));
         results.burg = resultTmp;
     end
 
     if RUN_SNR
         [missionStatus.snr, resultTmp, missionSeconds.snr] = runMission(fid, 'SNR', @() ...
-            runSNRAnalysis(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
+            runSNRAnalysis(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.figuresDir));
         results.snr = resultTmp;
     end
 
@@ -198,7 +201,7 @@ function main()
     % numerical missions. Attempt the final MAT bundle independently.
     saveTimer = tic;
     try
-        saveAnalysisResults(results, metadata, paths.resultsDir);
+        saveAnalysisResults(results, metadata, paths.figuresDir, paths.resultsDir);
         missionSeconds.saveAnalysis = toc(saveTimer);
         missionStatus.saveAnalysis = true;
         fprintf('SUCCESS: Save analysis summary (%.3f s)\n', missionSeconds.saveAnalysis);
@@ -226,7 +229,7 @@ function main()
     % Total includes setup, loading and saves, before timing-report persistence.
     missionSeconds.total = toc(runTimer);
     [missionStatus.saveTimings, ~] = runMission(fid, 'Save timing summary', @() ...
-        saveTimingSummary(missionSeconds, paths.resultsDir, missionStatus.saveAnalysis));
+        saveTimingSummary(missionSeconds, paths.resultsDir, missionStatus.saveAnalysis, paths.figuresDir));
 
     % 7) Log final status summary.
     fprintf(fid, '\nFinal mission status:\n');
@@ -244,7 +247,6 @@ function main()
         fprintf(2, 'Completed with %d failure(s): %s. See mission_log.txt for details.\n', ...
             numel(failed), strjoin(failed, ', '));
     end
-    fprintf('Results and log stored in: %s\n', paths.resultsDir);
+    fprintf('Reports and log stored in: %s\n', paths.resultsDir);
     fprintf('Final summary saved to: %s\n', paths.finalResultsPath);
 end
-

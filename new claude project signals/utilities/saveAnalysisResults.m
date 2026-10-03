@@ -1,4 +1,4 @@
-function saveAnalysisResults(results, metadata, outputFolder)
+function saveAnalysisResults(results, metadata, outputFolder, summaryFolder)
 %SAVEANALYSISRESULTS Save compact analysis outputs and a readable summary.
 %
 %   saveAnalysisResults(results, metadata, outputFolder)
@@ -8,7 +8,10 @@ function saveAnalysisResults(results, metadata, outputFolder)
 %   avoids dumping raw signal arrays or full FFT/PSD spectra to CSV.
 
     if nargin < 3 || isempty(outputFolder)
-        outputFolder = fullfile(pwd, 'results');
+        outputFolder = fullfile(pwd, 'figures');
+    end
+    if nargin < 4 || isempty(summaryFolder)
+        summaryFolder = outputFolder;
     end
     if nargin < 2 || isempty(metadata)
         metadata = struct();
@@ -19,6 +22,9 @@ function saveAnalysisResults(results, metadata, outputFolder)
 
     if ~exist(outputFolder, 'dir')
         mkdir(outputFolder);
+    end
+    if ~exist(summaryFolder, 'dir')
+        mkdir(summaryFolder);
     end
 
     allowedFields = {'windowedMoments', 'noiseMoments', 'sineMoments', 'fft', 'periodogram', 'welch', 'variableWelch', 'burg', 'snr', 'validation'};
@@ -35,7 +41,7 @@ function saveAnalysisResults(results, metadata, outputFolder)
     save(matPath, 'analysisSubset', 'metadata', '-v7');
 
     summaryText = buildAnalysisSummary(analysisSubset, metadata);
-    txtPath = fullfile(outputFolder, 'analysis_summary.txt');
+    txtPath = fullfile(summaryFolder, 'analysis_summary.txt');
     fid = fopen(txtPath, 'w');
     if fid == -1
         error('saveAnalysisResults:cannotWriteSummary', 'Could not write summary file at %s.', txtPath);

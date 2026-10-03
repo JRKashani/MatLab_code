@@ -10,12 +10,13 @@ function paths = projectPaths(projectRoot)
     paths = struct();
     paths.projectRoot = projectRoot;
     paths.resultsDir = fullfile(projectRoot, 'results');
+    paths.figuresDir = fullfile(projectRoot, 'figures');
     paths.generationDir = fullfile(projectRoot, 'generation');
     % Keep the user-edited configuration beside main.m; generation/ holds code.
     paths.configPath = fullfile(projectRoot, 'main_config.txt');
-    paths.signalMatPath = fullfile(paths.resultsDir, 'synthetic_accel_data.mat');
+    paths.signalMatPath = fullfile(paths.figuresDir, 'synthetic_accel_data.mat');
     paths.logFile = fullfile(paths.resultsDir, 'mission_log.txt');
-    paths.finalResultsPath = fullfile(paths.resultsDir, 'final_results.mat');
+    paths.finalResultsPath = fullfile(paths.figuresDir, 'final_results.mat');
     paths.plottingDir = fullfile(projectRoot, 'plotting');
     paths.momentsDir = fullfile(projectRoot, 'moments');
     paths.fftDir = fullfile(projectRoot, 'fft');

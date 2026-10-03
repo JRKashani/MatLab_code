@@ -5,7 +5,7 @@ function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputF
 %   to obtain mean-square power. NFFT padding refines the displayed grid.
 
     if nargin < 5 || isempty(outputFolder)
-        outputFolder = fullfile(pwd, 'results');
+        outputFolder = fullfile(pwd, 'figures');
     end
     if nargin < 4 || isempty(signalName)
         signalName = 'signal';

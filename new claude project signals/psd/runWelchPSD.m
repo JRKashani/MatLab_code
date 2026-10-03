@@ -6,7 +6,7 @@ function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
 %   f/psd retain the default 1024-sample, 50-percent-overlap result.
 
     if nargin < 5 || isempty(outputFolder)
-        outputFolder = fullfile(pwd, 'results');
+        outputFolder = fullfile(pwd, 'figures');
     end
     if nargin < 4 || isempty(signalName), signalName = 'signal'; end
     [x, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 8);

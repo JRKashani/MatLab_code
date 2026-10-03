@@ -7,7 +7,7 @@ function result = runSNRAnalysis(signal, sampleRange, Fs, signalName, outputFold
 %   not FFT-bin heights. Each tone's SNR uses the same full-band noise power.
 
     if nargin < 5 || isempty(outputFolder)
-        outputFolder = fullfile(pwd, 'results');
+        outputFolder = fullfile(pwd, 'figures');
     end
     if nargin < 4 || isempty(signalName)
         signalName = 'signal';

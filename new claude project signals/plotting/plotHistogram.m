@@ -13,7 +13,7 @@ function fig = plotHistogram(signalData, outputFolder, options)
 %   are directly comparable.
 
     if nargin < 2 || isempty(outputFolder)
-        outputFolder = fullfile(pwd, 'results');
+        outputFolder = fullfile(pwd, 'figures');
     end
     if nargin < 3 || isempty(options)
         options = struct();

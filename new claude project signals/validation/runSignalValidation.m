@@ -3,7 +3,7 @@ function result = runSignalValidation(signal, sampleRange, Fs, outputFolder)
 %   TODO: unify result checks and ground-truth validation in this module.
 
     if nargin < 4 || isempty(outputFolder)
-        outputFolder = fullfile(pwd, 'results');
+        outputFolder = fullfile(pwd, 'figures');
     end
 
     result = struct();

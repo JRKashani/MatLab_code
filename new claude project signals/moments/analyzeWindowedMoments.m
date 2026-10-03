@@ -52,7 +52,7 @@ function result = analyzeWindowedMoments(signal, sampleRange, Fs, options)
     if ~isempty(stepSec)
         validateattributes(stepSec, {'numeric'}, {'scalar', 'real', 'finite', 'nonnegative'});
     end
-    outputFolder = getOption(options, 'outputFolder', fullfile(pwd, 'results'));
+    outputFolder = getOption(options, 'outputFolder', fullfile(pwd, 'figures'));
     makePlots = getOption(options, 'makePlots', true);
     savePng = getOption(options, 'savePng', D.SAVE_PNG_FILES);
     saveFig = getOption(options, 'saveFig', D.SAVE_FIG_FILES);
