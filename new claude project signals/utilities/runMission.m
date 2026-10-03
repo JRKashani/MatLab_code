@@ -1,10 +1,12 @@
-function [status, result] = runMission(fid, missionName, missionFn)
+function [status, result, elapsedSeconds] = runMission(fid, missionName, missionFn)
 %RUNMISSION Isolate a mission failure, retaining its diagnostics and results.
 %   Exceptions are logged with a stack trace and printed briefly to stderr.
 %   A returned allPassed=false or status='not_implemented' is also a failure:
 %   executing a validator successfully is different from passing its checks.
 %   Pass [] for fid to use console reporting without a log file.
+%   The optional third output measures wall time, including plots and exports.
 
+    missionTimer = tic;
     status = false;
     result = [];
     try
@@ -26,18 +28,20 @@ function [status, result] = runMission(fid, missionName, missionFn)
                 reason = 'This mission is not implemented.';
             end
         end
+        elapsedSeconds = toc(missionTimer);
         if status
-            fprintf('SUCCESS: %s\n', missionName);
-            if ~isempty(fid), fprintf(fid, 'SUCCESS: %s\n', missionName); end
+            fprintf('SUCCESS: %s (%.3f s)\n', missionName, elapsedSeconds);
+            if ~isempty(fid), fprintf(fid, 'SUCCESS: %s (%.3f s)\n', missionName, elapsedSeconds); end
         else
-            fprintf(2, 'FAILURE: %s - %s\n', missionName, reason);
-            if ~isempty(fid), fprintf(fid, 'FAILURE: %s - %s\n', missionName, reason); end
+            fprintf(2, 'FAILURE: %s (%.3f s) - %s\n', missionName, elapsedSeconds, reason);
+            if ~isempty(fid), fprintf(fid, 'FAILURE: %s (%.3f s) - %s\n', missionName, elapsedSeconds, reason); end
         end
     catch ME
         status = false;
-        fprintf(2, 'FAILURE: %s - %s\n', missionName, ME.message);
+        elapsedSeconds = toc(missionTimer);
+        fprintf(2, 'FAILURE: %s (%.3f s) - %s\n', missionName, elapsedSeconds, ME.message);
         if ~isempty(fid)
-            fprintf(fid, 'FAILURE: %s\n%s\n', missionName, getReport(ME, 'extended', 'hyperlinks', 'off'));
+            fprintf(fid, 'FAILURE: %s (%.3f s)\n%s\n', missionName, elapsedSeconds, getReport(ME, 'extended', 'hyperlinks', 'off'));
         end
     end
 end

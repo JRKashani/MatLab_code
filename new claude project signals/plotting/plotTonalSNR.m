@@ -4,18 +4,19 @@ function [fig, files] = plotTonalSNR(result, outputFolder, options)
     if ~isfield(options,'savePng'), options.savePng = D.SAVE_PNG_FILES; end
     if ~isfield(options,'saveFig'), options.saveFig = D.SAVE_FIG_FILES; end
     fig = figure('Name', ['Tonal SNR - ' result.signalName], 'Color', 'w', ...
-        'Position', [80 80 1200 800]);
+        'WindowStyle', 'docked');
     layout = tiledlayout(fig,2,2,'TileSpacing','compact','Padding','compact');
-    title(layout,sprintf('%s | Tonal SNR %.3g dB | White-noise RMS %.4g | Band 0-%.4g Hz', ...
+    title(layout,sprintf('%s | Tonal SNR %.3g [dB] | White-noise RMS %.4g | Band 0-%.4g [Hz]', ...
         result.signalName,result.overallSNRdB,result.noiseRMS,result.Fs/2),'Interpreter','none');
     colors = lines(max(1,numel(result.tracks)));
     ax = nexttile(layout);
-    plot(ax,result.frequencyHz,10*log10(max(result.meanPSD,realmin)), 'DisplayName','Mean PSD');
+    plot(ax,result.frequencyHz,result.meanPSD, 'DisplayName','Mean PSD');
+    set(ax, 'YScale', 'linear');
     hold(ax,'on');
     if result.whiteNoisePSD > 0
-        yline(ax,10*log10(result.whiteNoisePSD),'--r','DisplayName','Estimated white noise');
+        yline(ax,result.whiteNoisePSD,'--r','DisplayName','Estimated white noise');
     end
-    xlabel(ax,'Frequency [Hz]'); ylabel(ax,'PSD [dB/Hz]');
+    xlabel(ax,'Frequency [Hz]'); ylabel(ax,'PSD [signal units^2/Hz]');
     title(ax,'Measured spectrum and estimated noise floor'); grid(ax,'on'); legend(ax,'show');
     xlim(ax,[0 result.Fs/2]);
 

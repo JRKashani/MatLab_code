@@ -17,11 +17,12 @@ function result = runBurgPSD(signal, sampleRange, Fs, signalName, outputFolder)
     nfft = max(1024, 2^nextpow2(numel(x)));
     [psd, f] = computeBurgPSD(x, Fs, order, nfft);
 
-    fig = figure('Name', ['Burg PSD - ' signalName]);
-    plot(f, 10 * log10(psd + eps), 'LineWidth', 1.5);
+    fig = figure('Name', ['Burg PSD - ' signalName], 'WindowStyle', 'docked');
+    plot(f, psd, 'LineWidth', 1.5);
     title(['Burg PSD: ' signalName]);
     xlabel('Frequency [Hz]');
-    ylabel('Power spectral density [dB/Hz]');
+    ylabel('Power spectral density [m^2/s^4/Hz]');
+    set(gca, 'YScale', 'linear');
     grid on;
     xlim([0, Fs/2]);
     peakSettings = DEFINE();

@@ -42,6 +42,8 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
 %     sampleRange           - the validated [startSample, endSample] used
 %     peakFrequenciesHz     - frequencies of the detected dominant peaks
 %     peakAmplitudes        - corresponding one-sided amplitudes
+%     allPeakFrequenciesHz  - all detected peaks, uncapped, ascending [Hz]
+%     peakNeighborhoods     - surrounding bands for variable-resolution Welch
 %
 %   EXAMPLE
 %     result = analyzeAccelFFT(accelZ, [150001 220000], 2000, ...
@@ -223,7 +225,7 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
     % Peak detection is deliberately kept in the FFT calculation result,
     % while any later labeling on the plot is a separate display concern.
     % ---------------------------------------------------------------
-    peaks = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D);
+    [peaks, allPeaks] = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D);
 
     % ---------------------------------------------------------------
     % 9. Assemble the output structure.
@@ -237,6 +239,10 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
     result.peaks                 = peaks;
     result.peakFrequenciesHz     = peaks.frequencyHz;
     result.peakAmplitudes        = peaks.amplitude;
+    result.allPeakFrequenciesHz  = allPeaks.frequencyHz;
+    result.allPeakAmplitudes     = allPeaks.amplitude;
+    result.peakNeighborhoods = peakFrequencyBands(allPeaks.frequencyHz, Fs, ...
+        D.WELCH_PEAK_SURROUND_HZ, D.WELCH_PEAK_SURROUND_PERCENT);
 
     % ---------------------------------------------------------------
     % 10. Plot. Linear y-axis by design, so peak heights stay directly
@@ -247,30 +253,17 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
     %     because it distorts the direct "peak height = amplitude"
     %     reading you asked for.)
     % ---------------------------------------------------------------
-    fig = figure('Visible', 'on');
+    fig = figure('Name', ['FFT - ' signalName], 'WindowStyle', 'docked');
     plot(frequencyHz, amplitudeSpectrum, 'b-', 'LineWidth', 1);
-    hold on;
-    if isfield(peaks, 'enabled') && peaks.enabled && ~isempty(peaks.frequencyHz)
-        markerStyle = 'rv';
-        plot(peaks.frequencyHz, peaks.amplitude, markerStyle, 'MarkerFaceColor', 'r', 'MarkerSize', 6);
-        for k = 1:numel(peaks.frequencyHz)
-            peakFreq = peaks.frequencyHz(k);
-            peakAmp  = peaks.amplitude(k);
-            labelText = sprintf('%.2f Hz\n%.3g %s', peakFreq, peakAmp, unitsLabel);
-            text(peakFreq, peakAmp, labelText, ...
-                'HorizontalAlignment', 'center', ...
-                'VerticalAlignment', 'bottom', ...
-                'FontSize', 8, ...
-                'Interpreter', 'none');
-        end
+    if peaks.enabled
+        annotateSpectralPeaks(gca, peaks.frequencyHz, peaks.amplitude, unitsLabel, 'fftPeak');
     end
-    hold off;
     grid on;
-    xlabel('Frequency (Hz)');
-    ylabel(sprintf('Acceleration amplitude (%s)', unitsLabel));
+    xlabel('Frequency [Hz]');
+    ylabel(sprintf('Acceleration amplitude [%s]', unitsLabel));
 
     titleStr = sprintf('One-sided FFT: %s (samples %d-%d)', signalName, startSample, endSample);
-    subtitleStr = sprintf('Mean acceleration removed before FFT: %.4g %s    |    df = %.4g Hz', ...
+    subtitleStr = sprintf('Mean acceleration removed before FFT: %.4g [%s]    |    df = %.4g [Hz]', ...
         meanAcceleration, unitsLabel, df);
     title({titleStr, subtitleStr}, 'Interpreter', 'none');
 
@@ -298,16 +291,15 @@ end
 % than scattering small private helpers across several files.
 % ===================================================================
 
-function peaks = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D)
+function [peaks, allPeaks] = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D)
     peaks = struct('enabled', false, 'frequencyHz', [], 'amplitude', [], 'prominence', []);
+    allPeaks = struct('frequencyHz', zeros(0,1), 'amplitude', zeros(0,1));
 
     if nargin < 3 || isempty(D)
         D = DEFINE();
     end
 
-    if ~isfield(D, 'FFT_MARK_PEAKS') || isempty(D.FFT_MARK_PEAKS) || ~D.FFT_MARK_PEAKS
-        return;
-    end
+    peaks.enabled = logical(D.PSD_MARK_PEAKS);
 
     minProminence = 0.01;
     if isfield(D, 'FFT_MIN_PEAK_PROMINENCE') && ~isempty(D.FFT_MIN_PEAK_PROMINENCE)
@@ -315,8 +307,8 @@ function peaks = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D)
     end
 
     maxPeaks = 10;
-    if isfield(D, 'FFT_MAX_PEAKS') && ~isempty(D.FFT_MAX_PEAKS)
-        maxPeaks = D.FFT_MAX_PEAKS;
+    if isfield(D, 'PSD_MAX_PEAKS') && ~isempty(D.PSD_MAX_PEAKS)
+        maxPeaks = D.PSD_MAX_PEAKS;
     end
     maxPeaks = max(0, round(maxPeaks));
 
@@ -325,7 +317,6 @@ function peaks = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D)
     positiveAmp  = amplitudeSpectrum(positiveMask);
 
     if isempty(positiveFreq) || numel(positiveFreq) < 3
-        peaks.enabled = true;
         return;
     end
 
@@ -339,12 +330,15 @@ function peaks = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D)
     end
 
     if isempty(peakAmp)
-        peaks.enabled = true;
         return;
     end
 
-    if maxPeaks == 0
-        peaks.enabled = true;
+    % Save every detected peak before applying display controls.
+    [allPeaks.frequencyHz, allOrder] = sort(peakFreq(:));
+    allPeaks.amplitude = peakAmp(allOrder);
+    allPeaks.amplitude = allPeaks.amplitude(:);
+
+    if maxPeaks == 0 || ~peaks.enabled
         peaks.frequencyHz = [];
         peaks.amplitude = [];
         peaks.prominence = [];
@@ -365,7 +359,6 @@ function peaks = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D)
     selectedAmp = selectedAmp(sortOrder);
     selectedProm = selectedProm(sortOrder);
 
-    peaks.enabled = true;
     peaks.frequencyHz = selectedFreq(:);
     peaks.amplitude = selectedAmp(:);
     peaks.prominence = selectedProm(:);

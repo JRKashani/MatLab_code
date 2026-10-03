@@ -10,7 +10,7 @@ function setupOnce(testCase)
     testCase.TestData.originalRng = rng;
     root = fileparts(fileparts(mfilename('fullpath')));
     addpath(fullfile(root, 'utilities'), fullfile(root, 'psd'), ...
-        fullfile(root, 'moments'), fullfile(root, 'plotting'), root);
+        fullfile(root, 'moments'), fullfile(root, 'plotting'), fullfile(root, 'fft'), root);
     testCase.TestData.outputFolder = tempname;
     mkdir(testCase.TestData.outputFolder);
     testCase.TestData.visible = get(groot, 'DefaultFigureVisible');
@@ -297,6 +297,38 @@ function testSavedResultsExcludeFigures(testCase)
     verifyEmpty(testCase, saved.analysisSubset.windowedMoments.figureHandle);
 end
 
+function testMissionTimingAndSummaryPersistence(testCase)
+    captured = evalc('[ok, value, seconds] = runMission([], ''timed mission'', @() 42);');
+    verifyTrue(testCase, ok);
+    verifyEqual(testCase, value, 42);
+    verifyGreaterThanOrEqual(testCase, seconds, 0);
+    verifyTrue(testCase, contains(captured, ' s)'));
+    captured = evalc('[ok, ~, seconds] = runMission([], ''timed failure'', @throwExpected);');
+    verifyFalse(testCase, ok);
+    verifyGreaterThanOrEqual(testCase, seconds, 0);
+    verifyTrue(testCase, contains(captured, ' s)'));
+
+    folder = tempname;
+    mkdir(folder);
+    timings = struct('generation', 1.25, 'fft', 2.5, 'saveAnalysis', 0.1, ...
+        'saveFinal', 0.2, 'total', 4.05);
+    saveAnalysisResults(struct(), struct(), folder);
+    saveFinalResults(fullfile(folder, 'final_results.mat'), struct(), struct(), struct());
+    saveTimingSummary(timings, folder, true);
+    verifyTrue(testCase, contains(fileread(fullfile(folder, 'analysis_summary.txt')), 'fft: 2.500 s'));
+    verifyTrue(testCase, contains(fileread(fullfile(folder, 'analysis_summary.csv')), 'fft_seconds,2.5'));
+    verifyTrue(testCase, contains(fileread(fullfile(folder, 'timing_summary.txt')), 'total: 4.050 s'));
+    for name = {'analysis_results.mat', 'final_results.mat'}
+        saved = load(fullfile(folder, name{1}));
+        verifyEqual(testCase, saved.missionSeconds, timings);
+    end
+
+    % Failed analysis saves must not append new timing to an older summary.
+    before = fileread(fullfile(folder, 'analysis_summary.txt'));
+    saveTimingSummary(struct('total', 9), folder, false);
+    verifyEqual(testCase, fileread(fullfile(folder, 'analysis_summary.txt')), before);
+end
+
 function testPSDNormalizationAndBurgKnownProcess(testCase)
     rng(42);
     Fs = 1000;
@@ -313,4 +345,87 @@ function testPSDNormalizationAndBurgKnownProcess(testCase)
     expected = 1 ./ abs(1 - 0.8*exp(-1i*2*pi*f/Fs)).^2 / Fs;
     expected(2:end-1) = 2*expected(2:end-1);
     verifyLessThan(testCase, norm(p-expected)/norm(expected), 0.05);
+end
+
+function testThreeSignalMomentsUseCommonLimits(testCase)
+    options = struct('windowLengths', [5 9], 'stepSec', 0.1, 'makePlots', false, ...
+        'outputFolder', testCase.TestData.outputFolder, 'savePng', false, 'saveFig', false);
+    t = (0:99)'/10;
+    sine = 2*sin(2*pi*0.7*t);
+    noise = 0.1*cos(2*pi*2.3*t);
+    bundles = struct();
+    bundles.windowedMoments = analyzeWindowedMoments(sine+noise, [], 10, options);
+    bundles.noiseMoments = analyzeWindowedMoments(noise, [], 10, options);
+    bundles.sineMoments = analyzeWindowedMoments(sine, [], 10, options);
+    plotted = plotMomentComparison(bundles, 10, options);
+    keys = fieldnames(plotted);
+    for m = 1:4
+        limits = plotted.windowedMoments.sharedYLimits(m, :);
+        for k = 1:numel(keys)
+            r = plotted.(keys{k});
+            verifyEqual(testCase, numel(r.figureHandle), 4);
+            ax = findall(r.figureHandle(m), 'Type', 'axes');
+            verifyEqual(testCase, ylim(ax), limits);
+            for j = 1:numel(r.series)
+                values = r.series(j).(r.figureMoments{m});
+                values = values(isfinite(values));
+                verifyTrue(testCase, all(values >= limits(1) & values <= limits(2)));
+            end
+        end
+    end
+    saveAnalysisResults(plotted, struct(), testCase.TestData.outputFolder);
+    saved = load(fullfile(testCase.TestData.outputFolder, 'analysis_results.mat'));
+    verifyEqual(testCase, saved.analysisSubset.noiseMoments.series, bundles.noiseMoments.series);
+    verifyEqual(testCase, saved.analysisSubset.sineMoments.series, bundles.sineMoments.series);
+end
+
+function testWelchComparisonsHaveFourCurvesAndCorrectResolution(testCase)
+    Fs = 2048;
+    t = (0:16383)'/Fs;
+    x = sin(2*pi*123*t) + 0.1*cos(2*pi*347*t);
+    r = runWelchPSD(x, [], Fs, 'Welch comparison test', testCase.TestData.outputFolder);
+    verifyEqual(testCase, numel(r.windowComparison), 4);
+    verifyEqual(testCase, numel(r.overlapComparison), 4);
+    verifyEqual(testCase, r.windowLengths, [256 1024 4096 16384]);
+    verifyEqual(testCase, [r.windowComparison.frequencyResolutionHz], Fs./r.windowLengths);
+    verifyEqual(testCase, [r.overlapComparison.frequencyResolutionHz], 2*ones(1,4));
+    verifyEqual(testCase, [r.overlapComparison.actualOverlapFraction], [0 0.25 0.5 0.75]);
+    for k = 1:4
+        c = r.overlapComparison(k);
+        [expected, f] = computeWelchPSD(x-mean(x), Fs, c.segmentLength, ...
+            c.overlapSamples, hannWindowManual(c.segmentLength), c.nfft);
+        verifyEqual(testCase, c.psd, expected, 'AbsTol', 1e-12);
+        verifyEqual(testCase, c.f, f);
+    end
+    verifyEqual(testCase, r.psd, r.overlapComparison(3).psd);
+    for k = 1:2
+        ax = findall(r.figureHandle(k), 'Type', 'axes');
+        curves = findall(ax, 'Type', 'line');
+        verifyEqual(testCase, numel(curves), 4);
+    end
+end
+
+function testFFTPeakVectorIsNotLimitedByFlags(testCase)
+    Fs = 512;
+    t = (0:4095)'/Fs;
+    frequencies = (10:10:120)';
+    x = zeros(size(t));
+    for k = 1:numel(frequencies)
+        x = x + sin(2*pi*frequencies(k)*t);
+    end
+    r = analyzeAccelFFT(x, [1 numel(x)], Fs, 'all peaks', testCase.TestData.outputFolder, 'm/s^2', false, false);
+    verifyEqual(testCase, r.allPeakFrequenciesHz, frequencies, 'AbsTol', Fs/numel(t));
+    verifyEqual(testCase, numel(r.peakFrequenciesHz), DEFINE().PSD_MAX_PEAKS);
+    verifyEqual(testCase, size(r.peakNeighborhoods.rangesHz), [12 2]);
+end
+
+function testPeakSurroundUsesLargerWidthAndClipsToRange(testCase)
+    b = peakFrequencyBands([499; 1; 250], 1000, 2, 1);
+    verifyEqual(testCase, b.halfWidthHz, 5);
+    verifyEqual(testCase, b.rangesHz, [0 6; 245 255; 494 500]);
+    b = peakFrequencyBands(250, 1000, 20, 1);
+    verifyEqual(testCase, b.halfWidthHz, 20);
+    verifyEqual(testCase, b.rangesHz, [230 270]);
+    b = peakFrequencyBands([], 1000, 20, 1);
+    verifyEqual(testCase, size(b.rangesHz), [0 2]);
 end

@@ -20,7 +20,7 @@ function [figures, files] = plotWindowedMoments(series, globalMoments, radicalPo
         name = names{m};
         label = labels{m};
         figures(m) = figure('Name', [options.plotTitle ' - ' label], ...
-            'Color', 'w', 'Position', [100 100 1150 620]);
+            'Color', 'w', 'WindowStyle', 'docked');
         ax = axes('Parent', figures(m));
         hold(ax, 'on');
         points = radicalPoints.(name);
@@ -38,7 +38,7 @@ function [figures, files] = plotWindowedMoments(series, globalMoments, radicalPo
             else
                 indices = 1:count;
             end
-            windowLabel = sprintf('%.4g s (%d samples)', series(i).windowLength / Fs, series(i).windowLength);
+            windowLabel = sprintf('%.4g [s] (%d samples)', series(i).windowLength / Fs, series(i).windowLength);
             if points(i).defined
                 windowLabel = sprintf('%s, |rad - global| = %.5g', windowLabel, points(i).absoluteDeviation);
             else
@@ -65,20 +65,29 @@ function [figures, files] = plotWindowedMoments(series, globalMoments, radicalPo
             largest = points(defined(position));
             plot(ax, largest.time, largest.value, 'kd', 'MarkerSize', 12, ...
                 'LineWidth', 1.6, 'Tag', 'largestDeviation', 'DisplayName', 'Largest deviation');
-            subtitle(ax, sprintf('Circles: radical point per window | Largest |deviation| = %.5g at %.5g s (window %.4g s)', ...
+            subtitle(ax, sprintf('Circles: radical point per window | Largest |deviation| = %.5g at %.5g [s] (window %.4g [s])', ...
                 largest.absoluteDeviation, largest.time, largest.windowLength / Fs));
         else
             subtitle(ax, 'Global moment or local moments undefined; no radical point');
         end
         title(ax, [options.plotTitle ' - ' label], 'Interpreter', 'none');
         xlabel(ax, 'Time in recording [s]');
-        ylabel(ax, label);
+        if m <= 2
+            ylabel(ax, [label ' [m/s^2]']);
+        else
+            ylabel(ax, label);
+        end
         grid(ax, 'on');
         legend(ax, 'show', 'Location', 'southoutside', 'NumColumns', 2, 'Interpreter', 'none');
         hold(ax, 'off');
+        if isfield(options, 'yLimits')
+            ylim(ax, options.yLimits(m, :));
+        end
 
         % Separate filenames make all four moments available simultaneously.
-        base = fullfile(options.outputFolder, ['windowed_' name]);
+        prefix = 'windowed_';
+        if isfield(options, 'filePrefix'), prefix = options.filePrefix; end
+        base = fullfile(options.outputFolder, [prefix name]);
         if options.savePng
             files{end+1} = [base '.png']; %#ok<AGROW>
             exportgraphics(figures(m), files{end}, 'Resolution', 300);

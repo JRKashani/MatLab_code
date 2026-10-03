@@ -39,7 +39,7 @@ function fig = plotHistogram(signalData, outputFolder, options)
     end
     edges = linspace(lowerBound, upperBound, options.histogramBinCount + 1);
 
-    fig = figure('Name', 'Signal histograms', 'Color', 'w');
+    fig = figure('Name', 'Signal histograms', 'Color', 'w', 'WindowStyle', 'docked');
     tiledlayout(fig, 3, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
 
     signalSet = {combined, sine, noise};
@@ -48,7 +48,7 @@ function fig = plotHistogram(signalData, outputFolder, options)
         ax = nexttile;
         histogram(ax, signalSet{k}, edges, 'Normalization', 'count');
         title(titles{k});
-        xlabel('Amplitude');
+        xlabel('Acceleration [m/s^2]');
         ylabel('Count');
         grid on;
         % Keep the hover toolbar out of exported PNGs and saved figures.

@@ -68,7 +68,7 @@ function fig = plotSignalVsTime(signalData, outputFolder, options)
         timePlot = time;
     end
 
-    fig = figure('Name', 'Signal vs time', 'Color', 'w');
+    fig = figure('Name', 'Signal vs time', 'Color', 'w', 'WindowStyle', 'docked');
     tiledlayout(fig, 3, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
 
     for k = 1:3
@@ -76,7 +76,7 @@ function fig = plotSignalVsTime(signalData, outputFolder, options)
         plot(timePlot, signalSet{k}(idx), colors{k}, 'LineWidth', 1.1);
         title(titles{k});
         xlabel('Time [s]');
-        ylabel('Amplitude');
+        ylabel('Acceleration [m/s^2]');
         ylim(sharedYLimits);
         grid on;
     end

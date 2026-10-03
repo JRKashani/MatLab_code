@@ -5,8 +5,16 @@ function main()
 %   saves final numerical results. It does not contain the main analysis
 %   algorithms themselves.
 
+    runTimer = tic;
     clc;
     close all;
+
+    % Keep explicit and implicitly created figures in the shared tabbed
+    % container. Restore the user's desktop default when this run finishes.
+    previousWindowStyle = get(groot, 'DefaultFigureWindowStyle');
+    figureStyleCleanup = onCleanup(@() set(groot, ...
+        'DefaultFigureWindowStyle', previousWindowStyle)); %#ok<NASGU>
+    set(groot, 'DefaultFigureWindowStyle', 'docked');
 
     % 1) Project path setup.
     projectRoot = fileparts(mfilename('fullpath'));
@@ -26,16 +34,16 @@ function main()
     end
 
     % 2) Mission flags.
-    RUN_GENERATION = true;
-    RUN_TIME_PLOT = true;
-    RUN_HISTOGRAMS = true;
-    RUN_MOMENTS = true;
-    RUN_FFT = true;
+    RUN_GENERATION  = true;
+    RUN_TIME_PLOT   = true;
+    RUN_HISTOGRAMS  = true;
+    RUN_MOMENTS     = false;
+    RUN_FFT         = true;
     RUN_PERIODOGRAM = true;
-    RUN_WELCH = true;
-    RUN_BURG = true;
-    RUN_SNR = true;
-    RUN_VALIDATION = true;
+    RUN_WELCH       = true;
+    RUN_BURG        = false;
+    RUN_SNR         = true;
+    RUN_VALIDATION  = true;
 
     flags = struct();
     flags.RUN_GENERATION = RUN_GENERATION;
@@ -60,13 +68,15 @@ function main()
     fprintf(fid, 'Project run started at %s\n', char(datetime('now', 'Format', 'yyyy-MM-dd HH:mm:ss')));
     missionStatus = struct();
     results = struct();
+    missionSeconds = struct();
 
     % 3) Generate or load signal.
     if RUN_GENERATION
-        [missionStatus.generation, results.generation] = runMission(fid, 'Generate signal', @() ...
+        [missionStatus.generation, results.generation, missionSeconds.generation] = runMission(fid, 'Generate signal', @() ...
             generateSyntheticAccelSignal(paths.configPath, paths.signalMatPath));
 
         if missionStatus.generation
+            loadTimer = tic;
             loaded = load(paths.signalMatPath);
             data = loaded.(DEFINE().MAT_ROOT_VARNAME);
             signal = data.combinedSignal(:);
@@ -74,6 +84,9 @@ function main()
             sampleRange = [1, numel(signal)];
             cfg = data.Config;
             results.generation = struct('signal', signal, 'time', time, 'Fs', data.Fs, 'sampleRange', sampleRange, 'cfg', cfg);
+            missionSeconds.loadSignal = toc(loadTimer);
+            fprintf('SUCCESS: Load signal (%.3f s)\n', missionSeconds.loadSignal);
+            fprintf(fid, 'SUCCESS: Load signal (%.3f s)\n', missionSeconds.loadSignal);
         else
             error('main:signalGenerationFailed', 'Signal generation failed; mission set cannot continue without signal data.');
         end
@@ -88,13 +101,13 @@ function main()
 
     % 5) Run enabled missions independently.
     if RUN_TIME_PLOT
-        [missionStatus.timePlot, resultTmp] = runMission(fid, 'Signal vs time plot', @() ...
+        [missionStatus.timePlot, resultTmp, missionSeconds.timePlot] = runMission(fid, 'Signal vs time plot', @() ...
             plotSignalVsTime(data, paths.resultsDir));
         results.timePlot = resultTmp;
     end
 
     if RUN_HISTOGRAMS
-        [missionStatus.histograms, resultTmp] = runMission(fid, 'Histogram plot', @() ...
+        [missionStatus.histograms, resultTmp, missionSeconds.histograms] = runMission(fid, 'Histogram plot', @() ...
             plotHistogram(data, paths.resultsDir));
         results.histograms = resultTmp;
     end
@@ -107,44 +120,60 @@ function main()
         momentsOptions.savePng = DEFINE().SAVE_PNG_FILES;
         momentsOptions.saveFig = DEFINE().SAVE_FIG_FILES;
         momentsOptions.plotTitle = 'Windowed moments';
+        % Calculate all three before plotting so matching moments share limits.
+        momentsOptions.makePlots = false;
 
-        [missionStatus.windowedMoments, resultTmp] = runMission(fid, 'Windowed moments', @() ...
+        [missionStatus.windowedMoments, resultTmp, missionSeconds.windowedMoments] = runMission(fid, 'Windowed moments', @() ...
             analyzeWindowedMoments(signal, sampleRange, cfg.Fs, momentsOptions));
         results.windowedMoments = resultTmp;
+        [missionStatus.noiseMoments, results.noiseMoments, missionSeconds.noiseMoments] = runMission(fid, 'Pure noise moments', @() ...
+            analyzeWindowedMoments(data.pureNoiseSignal, sampleRange, cfg.Fs, momentsOptions));
+        [missionStatus.sineMoments, results.sineMoments, missionSeconds.sineMoments] = runMission(fid, 'Pure sine moments', @() ...
+            analyzeWindowedMoments(data.pureSineSignal, sampleRange, cfg.Fs, momentsOptions));
+        bundles = struct('windowedMoments', results.windowedMoments, ...
+            'noiseMoments', results.noiseMoments, 'sineMoments', results.sineMoments);
+        [missionStatus.momentPlots, plotted, missionSeconds.momentPlots] = runMission(fid, 'Moment comparison plots', @() ...
+            plotMomentComparison(bundles, cfg.Fs, momentsOptions));
+        if missionStatus.momentPlots
+            names = fieldnames(plotted);
+            for k = 1:numel(names)
+                results.(names{k}) = plotted.(names{k});
+            end
+        end
     end
 
     if RUN_FFT
-        [missionStatus.fft, resultTmp] = runMission(fid, 'FFT', @() ...
+        [missionStatus.fft, resultTmp, missionSeconds.fft] = runMission(fid, 'FFT', @() ...
             analyzeAccelFFT(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir, 'm/s^2', true, true));
         results.fft = resultTmp;
     end
 
     if RUN_PERIODOGRAM
-        [missionStatus.periodogram, resultTmp] = runMission(fid, 'Periodogram PSD', @() ...
+        [missionStatus.periodogram, resultTmp, missionSeconds.periodogram] = runMission(fid, 'Periodogram PSD', @() ...
             runPeriodogramPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
         results.periodogram = resultTmp;
     end
 
     if RUN_WELCH
-        [missionStatus.welch, resultTmp] = runMission(fid, 'Welch PSD', @() ...
+        [missionStatus.welch, resultTmp, missionSeconds.welch] = runMission(fid, 'Welch PSD', @() ...
             runWelchPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
         results.welch = resultTmp;
     end
 
     if RUN_BURG
-        [missionStatus.burg, resultTmp] = runMission(fid, 'Burg PSD', @() ...
+        [missionStatus.burg, resultTmp, missionSeconds.burg] = runMission(fid, 'Burg PSD', @() ...
             runBurgPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
         results.burg = resultTmp;
     end
 
     if RUN_SNR
-        [missionStatus.snr, resultTmp] = runMission(fid, 'SNR', @() ...
+        [missionStatus.snr, resultTmp, missionSeconds.snr] = runMission(fid, 'SNR', @() ...
             runSNRAnalysis(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
         results.snr = resultTmp;
     end
 
     if RUN_VALIDATION
-        [missionStatus.validation, resultTmp] = runMission(fid, 'Validation', @() ...
+        [missionStatus.validation, resultTmp, missionSeconds.validation] = runMission(fid, 'Validation', @() ...
             validateSyntheticAnalysis(paths.signalMatPath, struct('printSummary', false)));
         results.validation = resultTmp;
     end
@@ -157,29 +186,47 @@ function main()
     metadata.signalName = 'combinedSignal';
     % Failure to write a readable summary must not discard successful
     % numerical missions. Attempt the final MAT bundle independently.
+    saveTimer = tic;
     try
         saveAnalysisResults(results, metadata, paths.resultsDir);
+        missionSeconds.saveAnalysis = toc(saveTimer);
         missionStatus.saveAnalysis = true;
+        fprintf('SUCCESS: Save analysis summary (%.3f s)\n', missionSeconds.saveAnalysis);
+        fprintf(fid, 'SUCCESS: Save analysis summary (%.3f s)\n', missionSeconds.saveAnalysis);
     catch ME
+        missionSeconds.saveAnalysis = toc(saveTimer);
         missionStatus.saveAnalysis = false;
-        fprintf(2, 'FAILURE: Save analysis summary - %s\n', ME.message);
-        fprintf(fid, 'FAILURE: Save analysis summary\n%s\n', getReport(ME, 'extended', 'hyperlinks', 'off'));
+        fprintf(2, 'FAILURE: Save analysis summary (%.3f s) - %s\n', missionSeconds.saveAnalysis, ME.message);
+        fprintf(fid, 'FAILURE: Save analysis summary (%.3f s)\n%s\n', missionSeconds.saveAnalysis, getReport(ME, 'extended', 'hyperlinks', 'off'));
     end
 
+    saveTimer = tic;
     try
         saveFinalResults(paths.finalResultsPath, results, missionStatus, flags);
+        missionSeconds.saveFinal = toc(saveTimer);
+        fprintf('SUCCESS: Save final results (%.3f s)\n', missionSeconds.saveFinal);
+        fprintf(fid, 'SUCCESS: Save final results (%.3f s)\n', missionSeconds.saveFinal);
     catch ME
-        fprintf(2, 'FAILURE: Save final results - %s\n', ME.message);
-        fprintf(fid, 'FAILURE: Save final results\n%s\n', getReport(ME, 'extended', 'hyperlinks', 'off'));
+        missionSeconds.saveFinal = toc(saveTimer);
+        fprintf(2, 'FAILURE: Save final results (%.3f s) - %s\n', missionSeconds.saveFinal, ME.message);
+        fprintf(fid, 'FAILURE: Save final results (%.3f s)\n%s\n', missionSeconds.saveFinal, getReport(ME, 'extended', 'hyperlinks', 'off'));
         rethrow(ME);
     end
+
+    % Total includes setup, loading and saves, before timing-report persistence.
+    missionSeconds.total = toc(runTimer);
+    [missionStatus.saveTimings, ~] = runMission(fid, 'Save timing summary', @() ...
+        saveTimingSummary(missionSeconds, paths.resultsDir, missionStatus.saveAnalysis));
 
     % 7) Log final status summary.
     fprintf(fid, '\nFinal mission status:\n');
     fieldNames = fieldnames(missionStatus);
     for i = 1:numel(fieldNames)
-        fprintf(fid, '  %s : %d\n', fieldNames{i}, missionStatus.(fieldNames{i}));
+        name = fieldNames{i};
+        fprintf(fid, '  %s : %d\n', name, missionStatus.(name));
     end
+    fprintf('Total run time before timing report: %.3f s\n', missionSeconds.total);
+    fprintf(fid, 'Total run time before timing report: %.3f s\n', missionSeconds.total);
     failed = fieldNames(~structfun(@(passed) passed, missionStatus));
     if isempty(failed)
         fprintf('Completed: all %d enabled missions/save checks passed.\n', numel(fieldNames));

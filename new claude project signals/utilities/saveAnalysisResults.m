@@ -21,7 +21,7 @@ function saveAnalysisResults(results, metadata, outputFolder)
         mkdir(outputFolder);
     end
 
-    allowedFields = {'windowedMoments', 'fft', 'periodogram', 'welch', 'burg', 'snr', 'validation'};
+    allowedFields = {'windowedMoments', 'noiseMoments', 'sineMoments', 'fft', 'periodogram', 'welch', 'burg', 'snr', 'validation'};
     analysisSubset = struct();
     for k = 1:numel(allowedFields)
         fieldName = allowedFields{k};
@@ -60,7 +60,7 @@ function summaryText = buildAnalysisSummary(analysisSubset, metadata)
             lines{end+1} = sprintf('Sample range: [%d %d]', metadata.sampleRange(1), metadata.sampleRange(2));
         end
         if isfield(metadata, 'Fs')
-            lines{end+1} = sprintf('Fs: %.6g Hz', metadata.Fs);
+            lines{end+1} = sprintf('Fs: %.6g [Hz]', metadata.Fs);
         end
         if isfield(metadata, 'meanDc')
             lines{end+1} = sprintf('DC mean: %.6g', metadata.meanDc);
@@ -76,17 +76,29 @@ function summaryText = buildAnalysisSummary(analysisSubset, metadata)
             end
         end
     end
+    for key = {'noiseMoments', 'sineMoments'}
+        if isfield(analysisSubset, key{1}) && ~isempty(analysisSubset.(key{1}))
+            r = analysisSubset.(key{1});
+            lines{end+1} = sprintf('%s windows: %s', key{1}, mat2str(r.windowLengths(:).'));
+        end
+    end
 
     if isfield(analysisSubset, 'fft')
         fftRes = analysisSubset.fft;
         if isfield(fftRes, 'peakFrequenciesHz') && ~isempty(fftRes.peakFrequenciesHz)
             freqs = fftRes.peakFrequenciesHz(:).';
             amps = fftRes.peakAmplitudes(:).';
-            peakList = sprintf('%.3fHz@%.3g; ', [freqs; amps]);
+            peakList = sprintf('%.3f[Hz]@%.3g[m/s^2]; ', [freqs; amps]);
             lines{end+1} = sprintf('FFT dominant peaks: %s', peakList(1:end-2));
         end
         if isfield(fftRes, 'meanAcceleration')
-            lines{end+1} = sprintf('FFT DC mean: %.6g', fftRes.meanAcceleration);
+            lines{end+1} = sprintf('FFT DC mean: %.6g [m/s^2]', fftRes.meanAcceleration);
+        end
+        if isfield(fftRes, 'allPeakFrequenciesHz')
+            lines{end+1} = sprintf('All detected FFT peaks [Hz]: %s', mat2str(fftRes.allPeakFrequenciesHz(:).'));
+            b = fftRes.peakNeighborhoods;
+            lines{end+1} = sprintf('Peak half-width: max(%.6g [Hz], %.6g%% of 0-Fs/2) = %.6g [Hz]', ...
+                b.fixedHalfWidthHz, b.fullRangePercent, b.halfWidthHz);
         end
     end
 
@@ -108,6 +120,11 @@ function summaryText = buildAnalysisSummary(analysisSubset, metadata)
         if isfield(wel, 'segmentSecondsList')
             lines{end+1} = sprintf('Welch segment lengths: %s', mat2str(wel.segmentSecondsList));
         end
+        if isfield(wel, 'windowLengths')
+            lines{end+1} = sprintf('Welch window resolution (Fs/L), Hz: %s', mat2str(wel.Fs ./ wel.windowLengths));
+            lines{end+1} = sprintf('Welch overlap fractions: %s (common resolution %.6g [Hz])', ...
+                mat2str(wel.overlapFractions), wel.frequencyResolutionHz);
+        end
     end
 
     if isfield(analysisSubset, 'burg')
@@ -120,14 +137,14 @@ function summaryText = buildAnalysisSummary(analysisSubset, metadata)
     if isfield(analysisSubset, 'snr')
         snrRes = analysisSubset.snr;
         if isfield(snrRes, 'overallSNRdB')
-            lines{end+1} = sprintf('Overall tonal SNR: %.4f dB', snrRes.overallSNRdB);
+            lines{end+1} = sprintf('Overall tonal SNR: %.4f [dB]', snrRes.overallSNRdB);
         end
         if isfield(snrRes, 'noiseRMS')
-            lines{end+1} = sprintf('Estimated white-noise RMS: %.6g (band 0-%.6g Hz)', snrRes.noiseRMS, snrRes.Fs/2);
+            lines{end+1} = sprintf('Estimated white-noise RMS: %.6g (band 0-%.6g [Hz])', snrRes.noiseRMS, snrRes.Fs/2);
             lines{end+1} = sprintf('SNR analysis status: %s', snrRes.status);
             for j = 1:numel(snrRes.tracks)
                 tone = snrRes.tracks(j);
-                lines{end+1} = sprintf('Tone %d: %.4g-%.4g Hz, RMS %.5g, full-band SNR %.4g dB', ...
+                lines{end+1} = sprintf('Tone %d: %.4g-%.4g [Hz], RMS %.5g, full-band SNR %.4g [dB]', ...
                     j, tone.frequencyRangeHz(1), tone.frequencyRangeHz(2), sqrt(tone.meanPower), tone.overallSNRdB);
             end
             for j = 1:numel(snrRes.notes)
@@ -181,6 +198,12 @@ function csvStruct = collectScalarSummary(analysisSubset, metadata)
 
     if isfield(analysisSubset, 'fft')
         fftRes = analysisSubset.fft;
+        if isfield(fftRes, 'allPeakFrequenciesHz')
+            csvStruct.FFT_all_peaks_Hz = mat2str(fftRes.allPeakFrequenciesHz(:).');
+            csvStruct.Peak_surround_Hz = sprintf('%.6g', fftRes.peakNeighborhoods.fixedHalfWidthHz);
+            csvStruct.Peak_surround_percent = sprintf('%.6g', fftRes.peakNeighborhoods.fullRangePercent);
+            csvStruct.Peak_half_width_Hz = sprintf('%.6g', fftRes.peakNeighborhoods.halfWidthHz);
+        end
         if isfield(fftRes, 'peakFrequenciesHz') && ~isempty(fftRes.peakFrequenciesHz)
             csvStruct.FFT_dominant_peaks = sprintf('%s', mat2str(fftRes.peakFrequenciesHz(:).'));
         end

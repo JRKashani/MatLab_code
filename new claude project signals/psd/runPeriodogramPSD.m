@@ -19,11 +19,12 @@ function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputF
     window = hannWindowManual(numel(x));
     [psd, f] = computePeriodogramPSD(x, Fs, window, nfft);
 
-    fig = figure('Name', ['Periodogram - ' signalName]);
-    plot(f, 10 * log10(psd + eps), 'LineWidth', 1.5);
+    fig = figure('Name', ['Periodogram - ' signalName], 'WindowStyle', 'docked');
+    plot(f, psd, 'LineWidth', 1.5);
     title(['Periodogram: ' signalName]);
     xlabel('Frequency [Hz]');
-    ylabel('Power spectral density [dB/Hz]');
+    ylabel('Power spectral density [m^2/s^4/Hz]');
+    set(gca, 'YScale', 'linear');
     grid on;
     xlim([0, Fs/2]);
     peaks = markPSDPeaks(gca, f, psd);

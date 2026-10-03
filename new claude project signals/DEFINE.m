@@ -81,28 +81,26 @@ D.WM_RUNTIME_SAFETY_FACTOR = 0.80;
 % FFT PEAK DETECTION SETTINGS
 % =========================
 
-% Toggle automatic FFT peak detection and annotation for the one-sided,
-% positive-frequency amplitude spectrum. Setting this to false disables
-% all peak detection without editing the FFT calculations themselves.
-D.FFT_MARK_PEAKS = true;
-
 % Minimum prominence, in FFT amplitude units, required for a peak to
 % be considered meaningful. This applies only to the positive-frequency
 % one-sided amplitude spectrum used for FFT analysis.
 D.FFT_MIN_PEAK_PROMINENCE = 0.01;
 
-% Maximum number of strong peaks to retain after sorting by amplitude.
-D.FFT_MAX_PEAKS = 10;
+% Future variable-resolution Welch: half-width on each side of an FFT peak.
+% Use the larger of the fixed Hz value and this percentage of 0 ... Fs/2.
+D.WELCH_PEAK_SURROUND_HZ = 5;
+D.WELCH_PEAK_SURROUND_PERCENT = 0.1;
 
-% --- PSD peak annotations (periodogram, Welch and Burg) --------------------
-% Labels report Hz and the plotted PSD level in dB/Hz, not FFT amplitude.
+% --- Shared spectral annotations (FFT, periodogram and Burg) ---------------
+% Periodogram controls are shared by all annotated spectral plots.
+% Labels report Hz and values in the plotted physical units.
 D.PSD_MARK_PEAKS = true;
 D.PSD_MAX_PEAKS = 10;
 % Minimum prominence in linear PSD units, relative to the largest positive-
 % frequency PSD value, used for the periodogram and Welch plots.
 D.PSD_MIN_PEAK_PROMINENCE_RATIO = 0.01;
 % Burg spectra can have widely different peak heights. Detect prominence
-% on the plotted dB scale so a tall peak does not hide smaller clear peaks.
+% on an internal dB scale so a tall peak does not hide smaller clear peaks.
 D.BURG_MIN_PEAK_PROMINENCE_DB = 6;
 
 % --- Experimental tonal SNR (no generator configuration is used) -----------

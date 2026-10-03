@@ -1,50 +1,105 @@
 function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
-%RUNWELCHPSD Average overlapping Hann-windowed PSDs within sampleRange.
-%   Each segment uses at most 1024 samples with 50 percent overlap. Averaging
-%   reduces spectral variance; shorter segments reduce frequency resolution.
+%RUNWELCHPSD Four window lengths and four overlaps in two comparison figures.
+%   Hann windows; window comparison holds overlap at 50 percent.
+%   Overlap comparison holds length at min(1024, selected sample count).
+%   Resolution labels report Fs/windowLength, not the zero-padded bin grid.
+%   f/psd retain the default 1024-sample, 50-percent-overlap result.
 
     if nargin < 5 || isempty(outputFolder)
         outputFolder = fullfile(pwd, 'results');
     end
-    if nargin < 4 || isempty(signalName)
-        signalName = 'signal';
-    end
-
-    [x, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 3);
+    if nargin < 4 || isempty(signalName), signalName = 'signal'; end
+    [x, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 8);
     meanRemoved = mean(x);
     x = x - meanRemoved;
     n = numel(x);
-    segmentLength = min(1024, n);
-    overlap = floor(0.5 * segmentLength);
-    if overlap <= 0
-        overlap = 0;
+    lengths = [256 1024 4096 16384];
+    % Short records still get four distinct valid window lengths.
+    if n < lengths(end)
+        lengths = round(logspace(log10(3), log10(n), 4));
     end
-    window = hannWindowManual(segmentLength);
-    nfft = max(1024, 2^nextpow2(segmentLength));
-    [psd, f] = computeWelchPSD(x, Fs, segmentLength, overlap, window, nfft);
-
-    fig = figure('Name', ['Welch PSD - ' signalName]);
-    plot(f, 10 * log10(psd + eps), 'LineWidth', 1.5);
-    title(['Welch PSD: ' signalName]);
-    xlabel('Frequency [Hz]');
-    ylabel('Power spectral density [dB/Hz]');
-    grid on;
-    xlim([0, Fs/2]);
-    peaks = markPSDPeaks(gca, f, psd);
-
-    drawnow;
-    if ~exist(outputFolder, 'dir')
-        mkdir(outputFolder);
+    overlaps = [0 0.25 0.5 0.75];
+    defaultLength = min(1024, n);
+    windowCurves = calculateCurve(x, Fs, lengths(1), 0.5);
+    overlapCurves = calculateCurve(x, Fs, defaultLength, overlaps(1));
+    for k = 2:4
+        windowCurves(k) = calculateCurve(x, Fs, lengths(k), 0.5);
+        overlapCurves(k) = calculateCurve(x, Fs, defaultLength, overlaps(k));
     end
-    exportgraphics(fig, fullfile(outputFolder, 'welch_psd.png'), 'Resolution', 300);
 
-    result = struct();
-    result.f = f;
-    result.psd = psd;
-    result.peaks = peaks;
-    result.sampleRange = sampleRange;
-    result.sampleCount = numel(x);
-    result.Fs = Fs;
-    result.meanRemoved = meanRemoved;
-    result.outputFile = fullfile(outputFolder, 'welch_psd.png');
+    figures = gobjects(1, 2);
+    figures(1) = figure('Name', ['Welch window lengths - ' signalName], 'WindowStyle', 'docked');
+    ax = axes('Parent', figures(1));
+    hold(ax, 'on');
+    for k = 1:4
+        c = windowCurves(k);
+        plot(ax, c.f, c.psd, 'LineWidth', 1.2, ...
+            'DisplayName', sprintf('%d samples (%.4g [s]), resolution %.4g [Hz]', ...
+            c.segmentLength, c.segmentLength/Fs, c.frequencyResolutionHz));
+    end
+    title(ax, ['Welch PSD window length comparison: ' signalName], 'Interpreter', 'none');
+    subtitle(ax, 'Hann window | 50% requested overlap | resolution = Fs / window length');
+    finishAxes(ax, Fs);
+
+    figures(2) = figure('Name', ['Welch overlap - ' signalName], 'WindowStyle', 'docked');
+    ax = axes('Parent', figures(2));
+    hold(ax, 'on');
+    for k = 1:4
+        c = overlapCurves(k);
+        plot(ax, c.f, c.psd, 'LineWidth', 1.2, ...
+            'DisplayName', sprintf('%.3g%% overlap (%d samples), %d segments', ...
+            100*c.actualOverlapFraction, c.overlapSamples, c.segmentCount));
+    end
+    title(ax, ['Welch PSD overlap comparison: ' signalName], 'Interpreter', 'none');
+    subtitle(ax, sprintf('Hann | %d samples (%.4g [s]) | resolution %.4g [Hz] (Fs / window length)', ...
+        defaultLength, defaultLength/Fs, Fs/defaultLength));
+    finishAxes(ax, Fs);
+
+    D = DEFINE();
+    files = {};
+    if D.SAVE_PNG_FILES || D.SAVE_FIG_FILES
+        if ~exist(outputFolder, 'dir'), mkdir(outputFolder); end
+        bases = {'welch_window_sizes', 'welch_overlap'};
+        for k = 1:2
+            base = fullfile(outputFolder, bases{k});
+            if D.SAVE_PNG_FILES
+                files{end+1} = [base '.png']; %#ok<AGROW>
+                exportgraphics(figures(k), files{end}, 'Resolution', 300);
+            end
+            if D.SAVE_FIG_FILES
+                files{end+1} = [base '.fig']; %#ok<AGROW>
+                savefig(figures(k), files{end});
+            end
+        end
+    end
+    primary = overlapCurves(3);
+    result = struct('f', primary.f, 'psd', primary.psd, 'sampleRange', sampleRange, ...
+        'sampleCount', n, 'Fs', Fs, 'meanRemoved', meanRemoved, ...
+        'windowComparison', windowCurves, 'overlapComparison', overlapCurves, ...
+        'figureHandle', figures, 'files', {files}, ...
+        'windows', {{'Hann'}}, 'segmentSecondsList', lengths/Fs, ...
+        'windowLengths', lengths, 'overlapFractions', overlaps, ...
+        'frequencyResolutionHz', Fs/defaultLength);
+end
+
+function curve = calculateCurve(x, Fs, lengthSamples, fraction)
+    overlap = floor(fraction * lengthSamples);
+    nfft = max(1024, 2^nextpow2(lengthSamples));
+    [p, f] = computeWelchPSD(x, Fs, lengthSamples, overlap, ...
+        hannWindowManual(lengthSamples), nfft);
+    count = floor((numel(x)-lengthSamples)/(lengthSamples-overlap)) + 1;
+    curve = struct('f', f, 'psd', p, 'segmentLength', lengthSamples, ...
+        'overlapSamples', overlap, 'requestedOverlapFraction', fraction, ...
+        'actualOverlapFraction', overlap/lengthSamples, 'segmentCount', count, ...
+        'nfft', nfft, 'frequencyResolutionHz', Fs/lengthSamples, 'binSpacingHz', Fs/nfft);
+end
+
+function finishAxes(ax, Fs)
+    hold(ax, 'off');
+    xlabel(ax, 'Frequency [Hz]');
+    ylabel(ax, 'Power spectral density [m^2/s^4/Hz]');
+    set(ax, 'YScale', 'linear');
+    grid(ax, 'on');
+    xlim(ax, [0 Fs/2]);
+    legend(ax, 'show', 'Location', 'best', 'Interpreter', 'none');
 end

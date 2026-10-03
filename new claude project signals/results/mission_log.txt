@@ -1,24 +1,35 @@
-Project run started at 2026-09-22 03:21:56
-SUCCESS: Generate signal
-SUCCESS: Signal vs time plot
-SUCCESS: Histogram plot
-SUCCESS: Windowed moments
-SUCCESS: FFT
-SUCCESS: Periodogram PSD
-SUCCESS: Welch PSD
-SUCCESS: Burg PSD
-SUCCESS: SNR
-SUCCESS: Validation
+Project run started at 2026-10-04 00:32:46
+SUCCESS: Generate signal (0.555 s)
+SUCCESS: Load signal (0.141 s)
+SUCCESS: Signal vs time plot (1.929 s)
+SUCCESS: Histogram plot (2.240 s)
+SUCCESS: FFT (1.793 s)
+SUCCESS: Periodogram PSD (1.292 s)
+SUCCESS: Welch PSD (4.056 s)
+SUCCESS: SNR (2.238 s)
+SUCCESS: Validation (0.349 s)
+FAILURE: Save analysis summary (0.024 s)
+Error using save
+Unable to write file C:\Users\Efi\OneDrive - Braude College of Engineering\collage\first year\intro - matlab\code\new claude project
+signals\results\analysis_results.mat: Invalid argument.
+
+Error in saveAnalysisResults (line 35)
+    save(matPath, 'analysisSubset', 'metadata', '-v7');
+
+Error in main (line 191)
+        saveAnalysisResults(results, metadata, paths.resultsDir);
+SUCCESS: Save final results (1.350 s)
+SUCCESS: Save timing summary (0.012 s)
 
 Final mission status:
   generation : 1
   timePlot : 1
   histograms : 1
-  windowedMoments : 1
   fft : 1
   periodogram : 1
   welch : 1
-  burg : 1
   snr : 1
   validation : 1
-  saveAnalysis : 1
+  saveAnalysis : 0
+  saveTimings : 1
+Total run time before timing report: 16.047 s

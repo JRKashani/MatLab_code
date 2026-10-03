@@ -2,7 +2,7 @@
 # Lines starting with # are comments; blank lines are ignored.
 
 # --- global settings ---
-Fs = 10000
+Fs = 16384
 Duration = 60
 Seed = 7
 
@@ -13,11 +13,11 @@ NoiseBrownRMS = 0
 
 # --- sine components ---
 # Sine = freq[Hz], amplitude, startTime[s], duration[s], phase[rad], tau[s]
-Sine = 16,  2.9, 0, 60, 0.0, inf
-Sine = 217, 1.2, 0, 60, 1.2, inf
-Sine = 501, 0.7, 0, 60, -0.5, inf
+
+Sine = 217, 1.9, 0, 60, 1.2, inf
+
 
 # --- shift components ---
 # Shift = startTime[s], duration[s], offset
 Shift = 1.0, 2.0, 0
-Shift = 5.0, 1.0, 0
+
