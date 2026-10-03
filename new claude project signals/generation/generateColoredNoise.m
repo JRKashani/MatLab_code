@@ -36,6 +36,13 @@ function noise = generateColoredNoise(noiseType, numSamples, targetRMS)
 
 D = DEFINE();
 
+% Related alternative (DSP System Toolbox, not Signal Processing Toolbox).
+% Different filtering/RNG behavior means a different realization even with
+% the same seed; keep target-RMS normalization when comparing noise colors.
+% noiseSourceMatlab = dsp.ColoredNoise('Color', noiseType, 'SamplesPerFrame', numSamples, 'NumChannels', 1);
+% rawMatlab = noiseSourceMatlab();
+% noiseMatlab = rawMatlab(:).' * (targetRMS / rms(rawMatlab));
+
 switch noiseType
     case D.WHITE
         raw = randn(1, numSamples);
@@ -49,6 +56,9 @@ switch noiseType
 end
 
 rawRMS = sqrt(mean(raw.^2));
+% MATLAB alternative (rms is in base MATLAB since R2022a; formerly Signal
+% Processing Toolbox):
+% rawRMSMatlab = rms(raw);
 if rawRMS == 0
     error('generateColoredNoise:degenerateRealization', ...
         'Generated an all-zero %s noise realization; cannot rescale to targetRMS.', noiseType);

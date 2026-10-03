@@ -86,10 +86,14 @@ D.WM_RUNTIME_SAFETY_FACTOR = 0.80;
 % one-sided amplitude spectrum used for FFT analysis.
 D.FFT_MIN_PEAK_PROMINENCE = 0.01;
 
-% Future variable-resolution Welch: half-width on each side of an FFT peak.
+% Variable-resolution Welch: half-width on each side of an FFT peak.
 % Use the larger of the fixed Hz value and this percentage of 0 ... Fs/2.
-D.WELCH_PEAK_SURROUND_HZ = 5;
-D.WELCH_PEAK_SURROUND_PERCENT = 0.1;
+D.WELCH_PEAK_SURROUND_HZ = 10;
+D.WELCH_PEAK_SURROUND_PERCENT = 0.2;
+D.WELCH_VARIABLE_COARSE_WINDOW_SAMPLES = 1024;
+% Power-of-two ratio keeps both window lengths and FFT sizes radix-2.
+D.WELCH_VARIABLE_RESOLUTION_RATIO = 128;
+D.WELCH_VARIABLE_OVERLAP_FRACTION = 0.5;
 
 % --- Shared spectral annotations (FFT, periodogram and Burg) ---------------
 % Periodogram controls are shared by all annotated spectral plots.

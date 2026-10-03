@@ -21,7 +21,7 @@ function saveAnalysisResults(results, metadata, outputFolder)
         mkdir(outputFolder);
     end
 
-    allowedFields = {'windowedMoments', 'noiseMoments', 'sineMoments', 'fft', 'periodogram', 'welch', 'burg', 'snr', 'validation'};
+    allowedFields = {'windowedMoments', 'noiseMoments', 'sineMoments', 'fft', 'periodogram', 'welch', 'variableWelch', 'burg', 'snr', 'validation'};
     analysisSubset = struct();
     for k = 1:numel(allowedFields)
         fieldName = allowedFields{k};
@@ -127,6 +127,14 @@ function summaryText = buildAnalysisSummary(analysisSubset, metadata)
         end
     end
 
+    if isfield(analysisSubset, 'variableWelch') && ~isempty(analysisSubset.variableWelch)
+        v = analysisSubset.variableWelch;
+        lines{end+1} = sprintf('Variable Welch resolution: background %.6g [Hz], peak bands %.6g [Hz] (%g times finer)', ...
+            v.coarseResolutionHz, v.fineResolutionHz, v.resolutionRatio);
+        lines{end+1} = sprintf('Variable Welch fine bands [Hz]: %s', mat2str(v.fineBandsHz));
+        lines{end+1} = sprintf('Variable Welch resolution changes [Hz]: %s', mat2str(v.transitionFrequenciesHz(:).'));
+    end
+
     if isfield(analysisSubset, 'burg')
         burg = analysisSubset.burg;
         if isfield(burg, 'orders')
@@ -228,6 +236,13 @@ function csvStruct = collectScalarSummary(analysisSubset, metadata)
     end
     if isfield(analysisSubset, 'welch') && isfield(analysisSubset.welch, 'windows')
         csvStruct.Welch_windows = strjoin(cellstr(analysisSubset.welch.windows), ';');
+    end
+    if isfield(analysisSubset, 'variableWelch') && ~isempty(analysisSubset.variableWelch)
+        v = analysisSubset.variableWelch;
+        csvStruct.Variable_Welch_coarse_resolution_Hz = sprintf('%.9g', v.coarseResolutionHz);
+        csvStruct.Variable_Welch_fine_resolution_Hz = sprintf('%.9g', v.fineResolutionHz);
+        csvStruct.Variable_Welch_resolution_ratio = sprintf('%g', v.resolutionRatio);
+        csvStruct.Variable_Welch_boundaries_Hz = mat2str(v.transitionFrequenciesHz(:).');
     end
     if isfield(analysisSubset, 'burg') && isfield(analysisSubset.burg, 'orders')
         csvStruct.Burg_orders = mat2str(analysisSubset.burg.orders(:).');

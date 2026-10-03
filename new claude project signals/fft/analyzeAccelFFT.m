@@ -157,6 +157,8 @@ function result = analyzeAccelFFT(signal, sampleRange, Fs, signalName, outputFol
     % ---------------------------------------------------------------
     n = (0:N-1)';
     hannWindow = 0.5 - 0.5 * cos(2 * pi * n / (N - 1));
+    % MATLAB alternative (Signal Processing Toolbox):
+    % hannWindowMatlab = hann(N, 'symmetric');
 
     % Coherent gain = the window's average value. Dividing the spectrum
     % by it later undoes the window's attenuation, so a stationary
@@ -365,6 +367,11 @@ function [peaks, allPeaks] = detectFFTPeaks(frequencyHz, amplitudeSpectrum, D)
 end
 
 function [peakAmp, peakFreq, peakProm] = fallbackFindPeaks(frequencyHz, amplitudeSpectrum, minProminence)
+    % MATLAB alternative (Signal Processing Toolbox), already attempted by
+    % the caller before this fallback. Toolbox prominence is based on the
+    % surrounding valleys; this fallback uses only immediate neighbors.
+    % [peakAmpMatlab, peakFreqMatlab, ~, peakPromMatlab] = findpeaks(amplitudeSpectrum, frequencyHz, ...
+    %     'MinPeakProminence', max(0, minProminence), 'SortStr', 'descend');
     n = numel(amplitudeSpectrum);
     if n < 3
         peakAmp = [];

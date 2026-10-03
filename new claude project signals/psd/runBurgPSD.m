@@ -16,6 +16,8 @@ function result = runBurgPSD(signal, sampleRange, Fs, signalName, outputFolder)
     order = min(numel(x) - 1, min(40, max(4, floor(numel(x) / 20))));
     nfft = max(1024, 2^nextpow2(numel(x)));
     [psd, f] = computeBurgPSD(x, Fs, order, nfft);
+    % MATLAB alternative (Signal Processing Toolbox):
+    % [psdMatlab, fMatlab] = pburg(x, order, nfft, Fs, 'onesided');
 
     fig = figure('Name', ['Burg PSD - ' signalName], 'WindowStyle', 'docked');
     plot(f, psd, 'LineWidth', 1.5);

@@ -18,6 +18,11 @@ function [psd, f] = computeBurgPSD(x, Fs, order, nfft)
     end
 
     predictionPower = mean(x.^2);
+    % MATLAB alternatives (Signal Processing Toolbox):
+    % [psdMatlab, fMatlab] = pburg(x, order, nfft, Fs, 'onesided');
+    % [coefficientsMatlab, predictionPowerMatlab] = arburg(x, order);
+    % arburg returns a row of coefficients. Constant/degenerate inputs may
+    % differ from this implementation's reflection-coefficient clipping.
     coefficients = 1;
     forward = x(2:end);
     backward = x(1:end-1);

@@ -7,6 +7,9 @@ function [psd, f] = computeWelchPSD(x, Fs, segmentLength, overlap, window, nfft)
         error('computeWelchPSD:invalidSegments', 'Require 0 <= overlap < segmentLength <= signal length.');
     end
     numSegments = floor((n - overlap) / step);
+    % MATLAB alternative (Signal Processing Toolbox): numel(window) must
+    % equal segmentLength. Pass the actual window, not the default Hamming.
+    % [psdMatlab, fMatlab] = pwelch(x, window(:), overlap, nfft, Fs, 'onesided');
     psdSum = zeros(floor(nfft/2) + 1, 1);
 
     for k = 1:numSegments

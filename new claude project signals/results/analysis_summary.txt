@@ -1,42 +1,38 @@
 Synthetic analysis summary
 =========================
-Sample range: [1 600000]
-Fs: 10000 Hz
-DC mean: 0.00097836
-Moment windows: [1001 2501 5001 10001 20001]
-noiseMoments windows: [1001 2501 5001 10001 20001]
-sineMoments windows: [1001 2501 5001 10001 20001]
-FFT dominant peaks: 16.000Hz@2.9; 217.000Hz@1.2; 501.000Hz@0.699
-FFT DC mean: 0.00097836
+Sample range: [1 983040]
+Fs: 16384 [Hz]
+DC mean: 0.000603946
+FFT dominant peaks: 217.000[Hz]@1.9[m/s^2]
+FFT DC mean: 0.000603946 [m/s^2]
+All detected FFT peaks [Hz]: 217
+Peak half-width: max(10 [Hz], 0.2% of 0-Fs/2) = 16.384 [Hz]
 Welch windows: Hann
-Welch segment lengths: [0.0256 0.1024 0.4096 1.6384]
-Welch window resolution (Fs/L), Hz: [39.0625 9.765625 2.44140625 0.6103515625]
-Welch overlap fractions: [0 0.25 0.5 0.75] (common resolution 9.76562 Hz)
-Overall tonal SNR: 8.0566 dB
-Estimated white-noise RMS: 0.899899 (band 0-5000 Hz)
+Welch segment lengths: [0.015625 0.0625 0.25 1]
+Welch window resolution (Fs/L), Hz: [64 16 4 1]
+Welch overlap fractions: [0 0.25 0.5 0.75] (common resolution 16 [Hz])
+Variable Welch resolution: background 16 [Hz], peak bands 0.125 [Hz] (128 times finer)
+Variable Welch fine bands [Hz]: [200.616 233.384]
+Variable Welch resolution changes [Hz]: [200.616 233.384]
+Overall tonal SNR: 3.4867 [dB]
+Estimated white-noise RMS: 0.90028 (band 0-8192 [Hz])
 SNR analysis status: ok
-Tone 1: 15.98-16.04 Hz, RMS 2.0525, full-band SNR 7.162 dB
-Tone 2: 216.9-217.1 Hz, RMS 0.84845, full-band SNR -0.5114 dB
-Tone 3: 500.9-501.1 Hz, RMS 0.49408, full-band SNR -5.208 dB
-Per-tone SNR dB: [7.16166939294657 -0.511385825974792 -5.20797863993268]
+Tone 1: 217-217 [Hz], RMS 1.345, full-band SNR 3.487 [dB]
+Per-tone SNR dB: 3.48668443539861
 Validation: PASS
 
 Elapsed wall time (seconds, includes plots and exports):
-  generation: 0.363 s
-  loadSignal: 0.080 s
-  timePlot: 1.366 s
-  histograms: 2.158 s
-  windowedMoments: 0.695 s
-  noiseMoments: 0.793 s
-  sineMoments: 0.855 s
-  momentPlots: 15.860 s
-  fft: 1.307 s
-  periodogram: 1.101 s
-  welch: 3.787 s
-  burg: 1.583 s
-  snr: 2.846 s
-  validation: 0.235 s
-  saveAnalysis: 16.424 s
-  saveFinal: 16.620 s
-  total: 66.147 s
+  generation: 0.598 s
+  loadSignal: 0.142 s
+  timePlot: 2.510 s
+  histograms: 2.077 s
+  fft: 1.550 s
+  periodogram: 1.093 s
+  welch: 4.069 s
+  variableWelch: 1.379 s
+  snr: 1.707 s
+  validation: 0.260 s
+  saveAnalysis: 0.564 s
+  saveFinal: 1.092 s
+  total: 17.112 s
 Total measured before timing-report persistence.

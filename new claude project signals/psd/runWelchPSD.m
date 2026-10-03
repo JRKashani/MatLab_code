@@ -1,6 +1,6 @@
 function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
 %RUNWELCHPSD Four window lengths and four overlaps in two comparison figures.
-%   Hann windows; window comparison holds overlap at 50 percent.
+%   Hann windows; window comparison holds requested overlap at 67 percent.
 %   Overlap comparison holds length at min(1024, selected sample count).
 %   Resolution labels report Fs/windowLength, not the zero-padded bin grid.
 %   f/psd retain the default 1024-sample, 50-percent-overlap result.
@@ -19,11 +19,12 @@ function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
         lengths = round(logspace(log10(3), log10(n), 4));
     end
     overlaps = [0 0.25 0.5 0.75];
+    windowComparisonOverlap = 0.67;
     defaultLength = min(1024, n);
-    windowCurves = calculateCurve(x, Fs, lengths(1), 0.5);
+    windowCurves = calculateCurve(x, Fs, lengths(1), windowComparisonOverlap);
     overlapCurves = calculateCurve(x, Fs, defaultLength, overlaps(1));
     for k = 2:4
-        windowCurves(k) = calculateCurve(x, Fs, lengths(k), 0.5);
+        windowCurves(k) = calculateCurve(x, Fs, lengths(k), windowComparisonOverlap);
         overlapCurves(k) = calculateCurve(x, Fs, defaultLength, overlaps(k));
     end
 
@@ -36,9 +37,11 @@ function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
         plot(ax, c.f, c.psd, 'LineWidth', 1.2, ...
             'DisplayName', sprintf('%d samples (%.4g [s]), resolution %.4g [Hz]', ...
             c.segmentLength, c.segmentLength/Fs, c.frequencyResolutionHz));
+        addPSDIntegralLegendEntry(ax, c.integratedPower, sprintf('%d-sample window', c.segmentLength));
     end
     title(ax, ['Welch PSD window length comparison: ' signalName], 'Interpreter', 'none');
-    subtitle(ax, 'Hann window | 50% requested overlap | resolution = Fs / window length');
+    subtitle(ax, sprintf('Hann window | %.0f%% requested overlap | resolution = Fs / window length', ...
+        100*windowComparisonOverlap));
     finishAxes(ax, Fs);
 
     figures(2) = figure('Name', ['Welch overlap - ' signalName], 'WindowStyle', 'docked');
@@ -49,6 +52,7 @@ function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
         plot(ax, c.f, c.psd, 'LineWidth', 1.2, ...
             'DisplayName', sprintf('%.3g%% overlap (%d samples), %d segments', ...
             100*c.actualOverlapFraction, c.overlapSamples, c.segmentCount));
+        addPSDIntegralLegendEntry(ax, c.integratedPower, sprintf('%.3g%% overlap', 100*c.actualOverlapFraction));
     end
     title(ax, ['Welch PSD overlap comparison: ' signalName], 'Interpreter', 'none');
     subtitle(ax, sprintf('Hann | %d samples (%.4g [s]) | resolution %.4g [Hz] (Fs / window length)', ...
@@ -79,7 +83,7 @@ function result = runWelchPSD(signal, sampleRange, Fs, signalName, outputFolder)
         'figureHandle', figures, 'files', {files}, ...
         'windows', {{'Hann'}}, 'segmentSecondsList', lengths/Fs, ...
         'windowLengths', lengths, 'overlapFractions', overlaps, ...
-        'frequencyResolutionHz', Fs/defaultLength);
+        'frequencyResolutionHz', Fs/defaultLength, 'integratedPower', primary.integratedPower);
 end
 
 function curve = calculateCurve(x, Fs, lengthSamples, fraction)
@@ -87,11 +91,14 @@ function curve = calculateCurve(x, Fs, lengthSamples, fraction)
     nfft = max(1024, 2^nextpow2(lengthSamples));
     [p, f] = computeWelchPSD(x, Fs, lengthSamples, overlap, ...
         hannWindowManual(lengthSamples), nfft);
+    % MATLAB alternative (Signal Processing Toolbox), same window/overlap:
+    % [pMatlab, fMatlab] = pwelch(x, hann(lengthSamples, 'symmetric'), overlap, nfft, Fs, 'onesided');
     count = floor((numel(x)-lengthSamples)/(lengthSamples-overlap)) + 1;
     curve = struct('f', f, 'psd', p, 'segmentLength', lengthSamples, ...
         'overlapSamples', overlap, 'requestedOverlapFraction', fraction, ...
         'actualOverlapFraction', overlap/lengthSamples, 'segmentCount', count, ...
-        'nfft', nfft, 'frequencyResolutionHz', Fs/lengthSamples, 'binSpacingHz', Fs/nfft);
+        'nfft', nfft, 'frequencyResolutionHz', Fs/lengthSamples, 'binSpacingHz', Fs/nfft, ...
+        'integratedPower', trapz(f, p));
 end
 
 function finishAxes(ax, Fs)

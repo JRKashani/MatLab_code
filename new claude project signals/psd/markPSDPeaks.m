@@ -31,6 +31,10 @@ function peaks = markPSDPeaks(ax, frequencyHz, psd, D)
         detectionValues = psd;
     end
     candidates = find(islocalmax(detectionValues, 'MinProminence', threshold) & positive);
+    % MATLAB alternative (Signal Processing Toolbox); peak selection can
+    % differ for plateaus/endpoints. Keep the positive-frequency mask.
+    % [~, candidatesMatlab] = findpeaks(detectionValues, 'MinPeakProminence', threshold);
+    % candidatesMatlab = candidatesMatlab(positive(candidatesMatlab));
     [~, order] = sort(psd(candidates), 'descend');
     count = min(numel(order), max(0, round(D.PSD_MAX_PEAKS)));
     if count == 0, return; end

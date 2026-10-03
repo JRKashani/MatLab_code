@@ -89,6 +89,8 @@ function validation = validateSyntheticAnalysis(matPath, options)
     if isfield(data, 'pureNoiseSignal') && isfield(data, 'Config')
         noise = data.pureNoiseSignal(:);
         noisyRms = sqrt(mean(noise.^2));
+        % MATLAB reference (base MATLAB since R2022a; formerly Signal Processing Toolbox):
+        % noisyRmsMatlab = feval('rms', noise);
         targetRms = sqrt(data.Config.NoiseWhiteRMS^2 + data.Config.NoisePinkRMS^2 + data.Config.NoiseBrownRMS^2);
         if abs(noisyRms - targetRms) > tolerance.noiseRms * max(1, targetRms)
             validation = validateAddFailure(validation, 'NOISE RMS', sprintf('RMS mismatch: expected %.4g, got %.4g.', targetRms, noisyRms));
@@ -100,9 +102,16 @@ function validation = validateSyntheticAnalysis(matPath, options)
         x = data.combinedSignal(:);
         mu = mean(x);
         rms = sqrt(mean(x.^2));
+        % feval avoids the local variable named rms shadowing the function:
+        % rmsMatlab = feval('rms', x);
         centered = x - mu;
         skew = mean(centered.^3) / (std(x)^3 + eps);
         kurt = mean(centered.^4) / (std(x)^4 + eps) - 3;
+        % Related Statistics and Machine Learning Toolbox references:
+        % skewMatlab = skewness(x, 1);
+        % kurtMatlab = kurtosis(x, 1)-3;
+        % These use population variance. The current validator uses std(x)
+        % with N-1 normalization and eps, so values are not exactly equivalent.
         if abs(mu) > 1e-6
             validation.details.mean = mu;
         end
@@ -135,6 +144,7 @@ function validation = validateSyntheticAnalysis(matPath, options)
     if isfield(data, 'combinedSignal') && isfield(data, 'Fs')
         x = data.combinedSignal(:) - mean(data.combinedSignal(:));
         ms = mean(x.^2);
+        % msMatlab = feval('rms', x)^2;
         if exist('periodogram', 'file') == 2
             [Pxx, f] = periodogram(x, hann(numel(x)), max(1024, 2^nextpow2(numel(x))), data.Fs);
             integratedPower = trapz(f, Pxx);
@@ -169,6 +179,7 @@ function validation = validateSyntheticAnalysis(matPath, options)
             targetNoise = sqrt(data.Config.NoiseWhiteRMS^2 + data.Config.NoisePinkRMS^2 + data.Config.NoiseBrownRMS^2);
             if targetNoise > 0
                 noiseRms = sqrt(mean(pureNoise.^2));
+                % noiseRmsMatlab = feval('rms', pureNoise);
                 if abs(noiseRms - targetNoise) <= tolerance.noiseRms * max(1, targetNoise)
                     validation.details.snrGroundTruth = true;
                 end

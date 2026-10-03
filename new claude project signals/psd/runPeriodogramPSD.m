@@ -17,11 +17,17 @@ function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputF
     x = x - meanRemoved;
     nfft = max(1024, 2^nextpow2(numel(x)));
     window = hannWindowManual(numel(x));
+    % MATLAB alternative (Signal Processing Toolbox):
+    % windowMatlab = hann(numel(x), 'symmetric');
     [psd, f] = computePeriodogramPSD(x, Fs, window, nfft);
+    % [psdMatlab, fMatlab] = periodogram(x, window, nfft, Fs, 'onesided');
+    % Area under the displayed PSD, using the actual frequency coordinates.
+    integratedPower = trapz(f, psd);
 
     fig = figure('Name', ['Periodogram - ' signalName], 'WindowStyle', 'docked');
     plot(f, psd, 'LineWidth', 1.5);
     title(['Periodogram: ' signalName]);
+    subtitle(sprintf('PSD integral: %.6g [m^2/s^4]', integratedPower));
     xlabel('Frequency [Hz]');
     ylabel('Power spectral density [m^2/s^4/Hz]');
     set(gca, 'YScale', 'linear');
@@ -38,6 +44,7 @@ function result = runPeriodogramPSD(signal, sampleRange, Fs, signalName, outputF
     result = struct();
     result.f = f;
     result.psd = psd;
+    result.integratedPower = integratedPower;
     result.peaks = peaks;
     result.sampleRange = sampleRange;
     result.sampleCount = numel(x);

@@ -13,7 +13,7 @@ function main()
     % container. Restore the user's desktop default when this run finishes.
     previousWindowStyle = get(groot, 'DefaultFigureWindowStyle');
     figureStyleCleanup = onCleanup(@() set(groot, ...
-        'DefaultFigureWindowStyle', previousWindowStyle)); %#ok<NASGU>
+        'DefaultFigureWindowStyle', previousWindowStyle)); 
     set(groot, 'DefaultFigureWindowStyle', 'docked');
 
     % 1) Project path setup.
@@ -34,16 +34,17 @@ function main()
     end
 
     % 2) Mission flags.
-    RUN_GENERATION  = true;
-    RUN_TIME_PLOT   = true;
-    RUN_HISTOGRAMS  = true;
-    RUN_MOMENTS     = false;
-    RUN_FFT         = true;
-    RUN_PERIODOGRAM = true;
-    RUN_WELCH       = true;
-    RUN_BURG        = false;
-    RUN_SNR         = true;
-    RUN_VALIDATION  = true;
+    RUN_GENERATION     = true;
+    RUN_TIME_PLOT      = false;
+    RUN_HISTOGRAMS     = false;
+    RUN_MOMENTS        = false;
+    RUN_FFT            = true;
+    RUN_PERIODOGRAM    = true;
+    RUN_WELCH          = true;
+    RUN_VARIABLE_WELCH = true;
+    RUN_BURG           = false;
+    RUN_SNR            = false;
+    RUN_VALIDATION     = true;
 
     flags = struct();
     flags.RUN_GENERATION = RUN_GENERATION;
@@ -53,6 +54,7 @@ function main()
     flags.RUN_FFT = RUN_FFT;
     flags.RUN_PERIODOGRAM = RUN_PERIODOGRAM;
     flags.RUN_WELCH = RUN_WELCH;
+    flags.RUN_VARIABLE_WELCH = RUN_VARIABLE_WELCH;
     flags.RUN_BURG = RUN_BURG;
     flags.RUN_SNR = RUN_SNR;
     flags.RUN_VALIDATION = RUN_VALIDATION;
@@ -158,6 +160,14 @@ function main()
         [missionStatus.welch, resultTmp, missionSeconds.welch] = runMission(fid, 'Welch PSD', @() ...
             runWelchPSD(signal, sampleRange, cfg.Fs, 'combinedSignal', paths.resultsDir));
         results.welch = resultTmp;
+    end
+
+    if RUN_VARIABLE_WELCH
+        fftForWelch = [];
+        if isfield(results, 'fft'), fftForWelch = results.fft; end
+        [missionStatus.variableWelch, results.variableWelch, missionSeconds.variableWelch] = ...
+            runMission(fid, 'Variable-resolution Welch PSD', @() ...
+            runVariableWelchPSD(signal, sampleRange, cfg.Fs, fftForWelch, 'combinedSignal', paths.resultsDir));
     end
 
     if RUN_BURG

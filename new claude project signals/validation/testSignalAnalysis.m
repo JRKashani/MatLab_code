@@ -402,7 +402,24 @@ function testWelchComparisonsHaveFourCurvesAndCorrectResolution(testCase)
         ax = findall(r.figureHandle(k), 'Type', 'axes');
         curves = findall(ax, 'Type', 'line');
         verifyEqual(testCase, numel(curves), 4);
+        verifyEqual(testCase, numel(findall(ax, 'Tag', 'psdIntegralLegend')), 4);
+        leg = findall(r.figureHandle(k), 'Type', 'legend');
+        verifyEqual(testCase, numel(leg.String), 8);
     end
+    expectedPower = (1^2 + 0.1^2)/2;
+    verifyEqual(testCase, [r.windowComparison.integratedPower], expectedPower*ones(1,4), 'RelTol', 0.01);
+    verifyEqual(testCase, [r.overlapComparison.integratedPower], expectedPower*ones(1,4), 'RelTol', 0.01);
+end
+
+function testPSDIntegralMatchesKnownSinePower(testCase)
+    Fs = 1024;
+    x = 3 + 2*sin(2*pi*128*(0:4095)'/Fs);
+    r = runPeriodogramPSD(x, [], Fs, 'integral test', testCase.TestData.outputFolder);
+    % After DC removal, a sine of peak amplitude 2 has mean square 2.
+    verifyEqual(testCase, r.integratedPower, 2, 'RelTol', 1e-6);
+    ax = gca;
+    verifyTrue(testCase, contains(ax.Subtitle.String, 'PSD integral:'));
+    verifyTrue(testCase, contains(ax.Subtitle.String, '[m^2/s^4]'));
 end
 
 function testFFTPeakVectorIsNotLimitedByFlags(testCase)

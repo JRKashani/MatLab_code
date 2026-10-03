@@ -118,6 +118,11 @@ function result = analyzeWindowedMoments(signal, sampleRange, Fs, options)
     globalMoments = struct('mean', offset, ...
         'rms', hypot(offset, scale * sqrt(secondMoment)), ...
         'skewness', NaN, 'kurtosis', NaN);
+    % MATLAB reference: rms is base MATLAB since R2022a; skewness/kurtosis
+    % require Statistics and Machine Learning Toolbox. Flag 1 matches the
+    % population moments; subtract 3 to obtain excess kurtosis.
+    % globalMomentsMatlab = struct('mean', mean(segment), 'rms', rms(segment), ...
+    %     'skewness', skewness(segment, 1), 'kurtosis', kurtosis(segment, 1)-3);
     if secondMoment > 0
         globalMoments.skewness = mean(centered.^3) / secondMoment^1.5;
         globalMoments.kurtosis = mean(centered.^4) / secondMoment^2 - 3;
@@ -191,6 +196,21 @@ function series = calculateSeries(x, sums, runIds, offset, scale, centers, lengt
     halfWindow = (lengthSamples - 1) / 2;
     first = centers - halfWindow;
     last = centers + halfWindow;
+    % MATLAB reference for the full centered-window means (base MATLAB):
+    % meansMatlab = movmean(x, lengthSamples, 'Endpoints', 'discard');
+    % meansMatlab = meansMatlab(first);
+    % Per-window references for the other custom moment calculations:
+    % rmsMatlab = zeros(size(centers));
+    % skewMatlab = NaN(size(centers)); kurtMatlab = NaN(size(centers));
+    % for j = 1:numel(centers)
+    %     windowMatlab = x(first(j):last(j));
+    %     rmsMatlab(j) = rms(windowMatlab);
+    %     skewMatlab(j) = skewness(windowMatlab, 1);
+    %     kurtMatlab(j) = kurtosis(windowMatlab, 1)-3;
+    % end
+    % rms: base MATLAB (formerly Signal Processing Toolbox); skewness and
+    % kurtosis: Statistics and Machine Learning Toolbox. These direct-window
+    % references preserve our complete-window selection and evaluated centers.
     count = last - first + 1;
     raw = (sums(last + 1, :) - sums(first, :)) ./ count;
     mu = raw(:, 1);

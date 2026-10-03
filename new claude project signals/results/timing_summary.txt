@@ -1,14 +1,15 @@
 Elapsed wall time in seconds (includes plots and exports)
-generation: 0.555 s
-loadSignal: 0.141 s
-timePlot: 1.929 s
-histograms: 2.240 s
-fft: 1.793 s
-periodogram: 1.292 s
-welch: 4.056 s
-snr: 2.238 s
-validation: 0.349 s
-saveAnalysis: 0.024 s
-saveFinal: 1.350 s
-total: 16.047 s
+generation: 0.598 s
+loadSignal: 0.142 s
+timePlot: 2.510 s
+histograms: 2.077 s
+fft: 1.550 s
+periodogram: 1.093 s
+welch: 4.069 s
+variableWelch: 1.379 s
+snr: 1.707 s
+validation: 0.260 s
+saveAnalysis: 0.564 s
+saveFinal: 1.092 s
+total: 17.112 s
 Total measured before timing-report persistence.

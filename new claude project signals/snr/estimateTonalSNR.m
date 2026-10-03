@@ -21,6 +21,11 @@ function result = estimateTonalSNR(signal, sampleRange, Fs, options)
     if nargin < 4 || isempty(options), options = struct(); end
     if nargin < 2, sampleRange = []; end
     [x, sampleRange] = selectSignalSegment(signal, sampleRange, Fs, 64);
+    % Related MATLAB reference (Signal Processing Toolbox), NOT a drop-in
+    % replacement for this tracked, multitone, full-noise-band estimator:
+    % [singleToneSnrDbMatlab, noisePowerDbMatlab] = snr(x, Fs);
+    % snr treats a fundamental sinusoid and excludes harmonics. It does not
+    % return our time-varying tone identities, amplitudes or persistence.
     D = DEFINE();
     settings = struct('windowSec', D.SNR_WINDOW_SEC, ...
         'overlapFraction', D.SNR_OVERLAP_FRACTION, ...
@@ -57,6 +62,8 @@ function result = estimateTonalSNR(signal, sampleRange, Fs, options)
     guard = ceil(3 * resolutionHz / df);
     interior = f >= 4*resolutionHz & f <= Fs/2 - 4*resolutionHz;
     window = hannWindowManual(L);
+    % MATLAB alternative (Signal Processing Toolbox):
+    % windowMatlab = hann(L, 'symmetric');
     spectra = zeros(numel(f), frameCount);
     candidates = cell(frameCount, 1);
 
@@ -64,6 +71,8 @@ function result = estimateTonalSNR(signal, sampleRange, Fs, options)
         frame = x(starts(j):starts(j)+L-1);
         frame = frame - mean(frame);
         p = computePeriodogramPSD(frame, Fs, window, nfft);
+        % MATLAB alternative (Signal Processing Toolbox), same demeaned frame:
+        % [pMatlab, fMatlab] = periodogram(frame, window, nfft, Fs, 'onesided');
         spectra(:,j) = p;
         floorPSD = median(p(interior)) / log(2);
         % Do not promote numerical roundoff to meaningful peaks.
